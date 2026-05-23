@@ -1,0 +1,672 @@
+/* ═══════════════════════════════════════════
+   FRIDO QC DASHBOARD — LOGIC (shell-compatible)
+   Renders into #view-dashboard
+   Six required widgets, grouped into thematic
+   sections styled like the Frido Master Dashboard.
+   ═══════════════════════════════════════════ */
+
+const SECTION_NAMES = {
+  S1: 'Store Cleanliness & Hygiene',
+  S2: 'BOH Check',
+  S3: 'Store Maintenance',
+  S4: 'Merchandising & Display',
+  S5: 'Stockroom Quality',
+  S6: 'Store Operations & Compliance',
+  S7: 'Product Quality & Condition',
+};
+
+const SECTION_COUNTS = { S1: 5, S2: 1, S3: 1, S4: 17, S5: 5, S6: 6, S7: 35 };
+
+const CHECKPOINT_LABELS = {
+  S1: ['Store floor is clean and free of dust', 'Display shelves cleaned and organized', 'AC / fans in working condition', 'No foul smell inside store', 'Dustbins available and emptied'],
+  S2: ['BOH 5S'],
+  S3: ['Check if any infra damaged'],
+  S4: ['Display as per planogram', 'Bestsellers displayed in prime locations', 'New arrivals displayed properly', 'Seasonal products highlighted', 'Signage clean and correct', 'Mannequins properly dressed if available', 'Wedge stand availability', 'Maniquine for TNP', 'Maniquine for Barefoot and socks', 'Differentiators', 'Size chart', 'Footwear measurer', 'Stands Quality stickering/pasting', 'Fire Extinguisher', 'Staff Uniform', 'Cash counter lock check keys check', 'Cash register file'],
+  S5: ['Stockroom organized by category and size', 'No leakage moisture or dust', 'Proper racks and bins available', 'FIFO followed for inventory', 'Damaged stock segregated and logged'],
+  S6: ['Billing system working smoothly', 'CCTV working', 'Emergency exits clear', 'Customer feedback register updated', 'Inward and Outward file check', 'Compliance check'],
+  S7: ['Zipper issue', 'Stains on cover', 'Firmness of cusions', 'Hardness of cusions', 'Bubbles', 'Cuts/Torn', 'Lints', 'TNP velcro loose', 'No faded', 'Hinges check', 'Stains', 'Lints', 'All Functions Check', 'Portable desk loose', 'No faded', 'Dust on boxes', 'Box condition', 'Sticker position', 'Stain', 'Wear and tare', 'Glue marks', 'Covers for shoes available', 'Damages', 'All latest models availability', 'Double stickering/MRP', 'Packaging condition', 'Dust/Dirt', 'Machine check', 'Cleanliness', 'Wiring check', 'Machine cleanliness 2D 3D', 'No damaged / defective products on display', 'No faded stained or torn products', 'Packaging intact and clean', 'Returned items checked before keeping back'],
+};
+
+const MASTER_STORES = [
+  'Phoenix Marketcity Viman Nagar',
+  'Amanora Mall Magarpatta',
+  'Amar Tech Park Balewadi',
+  'Elpro Mall PCMC',
+  'Westend Mall Aundh Pune',
+  'Kopa Mall Ghorpadi KP',
+  'Mall of Asia Bangalore',
+  'Lakeshore Mall Y Junction',
+  'Sky City Mall Borivali',
+  'Gachibowli Hyderabad',
+  'Banjara Hills Hyderabad',
+  'DLF Mall Gurgaon Delhi',
+  'Bhartiya Mall Bangalore',
+  'Kompally Hyderabad',
+];
+
+let allAudits = [];
+let filteredAudits = [];
+
+/* ─── Grade helpers ─── */
+function getGrade(score) {
+  if (score === 70) return { label: 'Perfect', cls: 'grade-perfect' };
+  if (score >= 50) return { label: 'Good', cls: 'grade-good' };
+  if (score >= 30) return { label: 'Needs Work', cls: 'grade-needs-work' };
+  return { label: 'Critical', cls: 'grade-critical' };
+}
+
+/* ─── Utility ─── */
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+/* ─── Icon library ─── */
+const ICONS = {
+  trophy: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 4h3v3a3 3 0 0 1-3 3"/><path d="M7 4H4v3a3 3 0 0 0 3 3"/></svg>',
+  bars: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  list: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  check: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  refresh: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  alert: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  layers: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  spark: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+};
+
+/* ═══════════════════════════════════════════
+   INIT — called by the shell
+   ═══════════════════════════════════════════ */
+window.initDashboard = function initDashboard() {
+  const root = document.getElementById('view-dashboard');
+  if (!root) return;
+
+  allAudits = (window.fridoData && window.fridoData.audits) || [];
+
+  root.innerHTML = '';
+
+  // Page title row
+  const titleRow = el('div', 'page-title-row');
+  titleRow.innerHTML = `
+    <div>
+      <h1 class="page-title">Store Audit Dashboard</h1>
+      <p class="page-subtitle">Track audit performance, coverage and section health across every Frido store.</p>
+    </div>
+  `;
+  root.appendChild(titleRow);
+
+  if (!allAudits.length) {
+    const empty = el('div', 'empty-state');
+    empty.innerHTML = `
+      <div class="empty-icon">${ICONS.list}</div>
+      <h3>No audits yet</h3>
+      <p>Submit your first store audit to populate the analytics.</p>
+      <button class="btn-primary" onclick="switchView('audit-form')">Start First Audit &rarr;</button>
+    `;
+    root.appendChild(empty);
+    return;
+  }
+
+  /* ── Filters ── */
+  const filterRow = el('div', 'filter-row');
+  filterRow.innerHTML = buildFilters();
+  root.appendChild(filterRow);
+
+  /* ── KPI row ── */
+  const kpiRow = el('div', 'kpi-row');
+  kpiRow.id = 'kpiRow';
+  root.appendChild(kpiRow);
+
+  /* ── GROUP 1: Performance Overview ── */
+  const perfGroup = buildSectionGroup({
+    icon: ICONS.trophy,
+    title: 'Performance Overview',
+    subtitle: 'Leadership board, store averages and audit volume',
+    countId: 'perfCount',
+  });
+  perfGroup.body.appendChild(buildCardShell('leaderboardCard', ICONS.trophy, 'Store Leaderboard'));
+  perfGroup.body.appendChild(buildCardShell('storeAvgCard', ICONS.bars, 'Store-wise Average Score'));
+  perfGroup.body.appendChild(buildCardShell('auditsPerStoreCard', ICONS.list, 'Audits Conducted Per Store'));
+  perfGroup.countEl.textContent = '3 widgets';
+  root.appendChild(perfGroup.section);
+
+  /* ── GROUP 2: Audit Coverage ── */
+  const coverGroup = buildSectionGroup({
+    icon: ICONS.check,
+    title: 'Audit Coverage',
+    subtitle: 'Audited vs pending stores and re-audit gap tracking',
+    countId: 'coverCount',
+    iconVariant: 'blue',
+  });
+  coverGroup.body.appendChild(buildCardShell('auditStatusCard', ICONS.check, 'Audited vs Pending Stores'));
+  coverGroup.body.appendChild(buildCardShell('gapCard', ICONS.refresh, 'Re-Audit Gap Analysis'));
+  coverGroup.countEl.textContent = '2 widgets';
+  root.appendChild(coverGroup.section);
+
+  /* ── GROUP 3: Audit Health ── */
+  const healthGroup = buildSectionGroup({
+    icon: ICONS.alert,
+    title: 'Audit Health',
+    subtitle: 'Section-level failure rates across all visits',
+    countId: 'healthCount',
+    iconVariant: 'rose',
+  });
+  healthGroup.body.appendChild(buildCardShell('failureCard', ICONS.alert, 'Section Failure Rate'));
+  healthGroup.countEl.textContent = '1 widget';
+  root.appendChild(healthGroup.section);
+
+  // Bind filter events
+  root.querySelector('#filterStore').addEventListener('change', applyFilters);
+  root.querySelector('#filterTime').addEventListener('change', applyFilters);
+  root.querySelector('#filterGrade').addEventListener('change', applyFilters);
+
+  populateStoreFilter();
+  applyFilters();
+
+  // Ensure widget sections are visible (KPI row renders outside these groups)
+  root.querySelectorAll('.section-group').forEach((group, index) => {
+    group.classList.add('section-group--visible');
+    group.style.transitionDelay = `${index * 80}ms`;
+  });
+};
+
+/* ─── Filter HTML ─── */
+function buildFilters() {
+  return `
+    <select id="filterStore" class="filter-select">
+      <option value="">All Stores</option>
+    </select>
+    <select id="filterTime" class="filter-select">
+      <option value="">All Time</option>
+      <option value="7">Last 7 Days</option>
+      <option value="30">Last 30 Days</option>
+      <option value="month">This Month</option>
+    </select>
+    <select id="filterGrade" class="filter-select">
+      <option value="">All Grades</option>
+      <option value="perfect">Perfect (70)</option>
+      <option value="good">Good (50–69)</option>
+      <option value="needs_work">Needs Work (30–49)</option>
+      <option value="critical">Critical (&lt;30)</option>
+    </select>`;
+}
+
+/* ─── Section Group skeleton (like Frido Master Dashboard) ─── */
+function buildSectionGroup({ icon, title, subtitle, countId, iconVariant }) {
+  const section = el('section', 'section-group');
+  const iconCls = iconVariant ? `section-group-icon icon--${iconVariant}` : 'section-group-icon';
+  section.innerHTML = `
+    <div class="section-group-header">
+      <div class="${iconCls}">${icon}</div>
+      <div class="section-group-text">
+        <div class="section-group-title">${title}</div>
+        <div class="section-group-subtitle">${subtitle}</div>
+      </div>
+      <div class="section-group-count" id="${countId}"></div>
+    </div>
+    <div class="section-group-body"></div>
+  `;
+  return {
+    section,
+    body: section.querySelector('.section-group-body'),
+    countEl: section.querySelector('.section-group-count'),
+  };
+}
+
+/* ─── Card skeleton ─── */
+function buildCardShell(id, icon, title) {
+  const card = el('div', 'card');
+  card.innerHTML = `
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="card-icon">${icon}</span>
+        <h3 class="card-title">${title}</h3>
+      </div>
+    </div>
+    <div id="${id}" class="card-body"></div>`;
+  return card;
+}
+
+/* ─── Store Filter Options ─── */
+function populateStoreFilter() {
+  const select = document.getElementById('filterStore');
+  const stores = [...new Set(allAudits.map(a => a.storeName))].sort();
+  stores.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    select.appendChild(opt);
+  });
+}
+
+/* ─── Filtering ─── */
+function parseVisitDate(dateStr) {
+  if (!dateStr) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function applyFilters() {
+  const store = document.getElementById('filterStore').value;
+  const time = document.getElementById('filterTime').value;
+  const grade = document.getElementById('filterGrade').value;
+  const now = new Date();
+
+  filteredAudits = allAudits.filter(a => {
+    if (store && a.storeName !== store) return false;
+
+    if (time) {
+      const d = parseVisitDate(a.visitDate || a.timestamp);
+      if (!d) return false;
+
+      if (time === 'month') {
+        if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false;
+      } else {
+        const days = parseInt(time, 10);
+        const cutoff = new Date(now);
+        cutoff.setHours(0, 0, 0, 0);
+        cutoff.setDate(cutoff.getDate() - days);
+        d.setHours(0, 0, 0, 0);
+        if (d < cutoff) return false;
+      }
+    }
+
+    if (grade) {
+      const s = a.totalScore;
+      if (grade === 'perfect' && s !== 70) return false;
+      if (grade === 'good' && (s < 50 || s > 69)) return false;
+      if (grade === 'needs_work' && (s < 30 || s > 49)) return false;
+      if (grade === 'critical' && s >= 30) return false;
+    }
+
+    return true;
+  });
+
+  renderKPIs();
+  renderLeaderboard();
+  renderStoreAvg();
+  renderAuditsPerStore();
+  renderAuditStatus();
+  renderGapAnalysis();
+  renderFailureChart();
+  renderFilterNotice();
+}
+
+function renderFilterNotice() {
+  const existing = document.getElementById('dashboardFilterNotice');
+  if (existing) existing.remove();
+
+  if (filteredAudits.length || !allAudits.length) return;
+
+  const notice = el('div', 'info-banner');
+  notice.id = 'dashboardFilterNotice';
+  notice.innerHTML = `
+    <span class="info-banner-icon">${ICONS.alert}</span>
+    <div>
+      <strong>No audits match the current filters.</strong>
+      You have ${allAudits.length} saved audit${allAudits.length === 1 ? '' : 's'} — try setting time to <em>All Time</em> or clearing store/grade filters.
+    </div>`;
+
+  const kpiRow = document.getElementById('kpiRow');
+  if (kpiRow) kpiRow.insertAdjacentElement('afterend', notice);
+}
+
+/* ═══════════════════════════════════════════
+   WIDGETS
+   ═══════════════════════════════════════════ */
+
+/* ─── KPIs ─── */
+function renderKPIs() {
+  const row = document.getElementById('kpiRow');
+  const total = filteredAudits.length;
+  const avg = total ? (filteredAudits.reduce((s, a) => s + a.totalScore, 0) / total) : 0;
+  const perfect = filteredAudits.filter(a => a.totalScore === 70).length;
+  const critical = filteredAudits.filter(a => a.totalScore < 30).length;
+
+  const avgCls = avg >= 50 ? 'green' : avg >= 30 ? 'orange' : 'red';
+
+  row.innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-icon">${ICONS.list}</div>
+      <div class="kpi-label">TOTAL AUDITS</div>
+      <div class="kpi-value">${total}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">${ICONS.spark}</div>
+      <div class="kpi-label">AVG SCORE /70</div>
+      <div class="kpi-value ${avgCls}">${avg.toFixed(1)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">${ICONS.trophy}</div>
+      <div class="kpi-label">PERFECT SCORES</div>
+      <div class="kpi-value green">${perfect}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">${ICONS.alert}</div>
+      <div class="kpi-label">CRITICAL &lt;30</div>
+      <div class="kpi-value red">${critical}</div>
+    </div>`;
+}
+
+/* ─── Leaderboard (Widget 2: Leadership Board) ─── */
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboardCard');
+  if (!container) return;
+  container.innerHTML = '';
+  const storeMap = buildStoreMap();
+
+  if (!storeMap.length) {
+    container.innerHTML = '<p class="empty-msg">No data</p>';
+    return;
+  }
+
+  const table = el('table', 'data-table');
+  table.innerHTML = `<thead><tr>
+    <th>RANK</th><th>STORE</th><th>AVG SCORE</th><th>AUDITS</th><th>GRADE</th>
+  </tr></thead>`;
+  const tbody = el('tbody');
+
+  storeMap.forEach((s, i) => {
+    const grade = getGrade(Math.round(s.avg));
+    const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const rankCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const rankContent = rankEmoji || (i + 1);
+
+    const tr = el('tr');
+    tr.innerHTML = `
+      <td><span class="leaderboard-rank ${rankCls}">${rankContent}</span></td>
+      <td style="font-weight:600">${s.name}</td>
+      <td style="font-weight:700">${s.avg.toFixed(1)}</td>
+      <td>${s.count}</td>
+      <td><span class="grade-badge ${grade.cls}">${grade.label}</span></td>`;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  const wrap = el('div', 'table-wrap');
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+}
+
+/* ─── Store-wise Avg Score (Widget 1) ─── */
+function renderStoreAvg() {
+  const container = document.getElementById('storeAvgCard');
+  if (!container) return;
+  container.innerHTML = '';
+  const storeMap = buildStoreMap();
+
+  if (!storeMap.length) {
+    container.innerHTML = '<p class="empty-msg">No data</p>';
+    return;
+  }
+
+  storeMap.forEach(s => {
+    const pct = Math.min(100, (s.avg / 70 * 100)).toFixed(0);
+    const row = el('div', 'score-row');
+    row.innerHTML = `
+      <div class="score-row-label">${s.name}</div>
+      <div class="score-row-bar-wrap">
+        <div class="score-row-bar-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="score-row-value">${s.avg.toFixed(1)}</div>`;
+    container.appendChild(row);
+  });
+}
+
+/* ─── Audits Per Store (Widget 6) ─── */
+function renderAuditsPerStore() {
+  const container = document.getElementById('auditsPerStoreCard');
+  if (!container) return;
+  container.innerHTML = '';
+  const storeMap = buildStoreMap();
+
+  if (!storeMap.length) {
+    container.innerHTML = '<p class="empty-msg">No data</p>';
+    return;
+  }
+
+  const sorted = [...storeMap].sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(...sorted.map(s => s.count), 1);
+
+  sorted.forEach(s => {
+    const pct = (s.count / maxCount) * 100;
+    const row = el('div', 'count-row');
+    row.innerHTML = `
+      <div class="count-row-label">${s.name}</div>
+      <div class="count-row-bar-wrap">
+        <div class="count-row-bar-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="count-row-value">${s.count}</div>`;
+    container.appendChild(row);
+  });
+}
+
+/* ─── Audited vs Pending (Widget 4) ─── */
+function renderAuditStatus() {
+  const container = document.getElementById('auditStatusCard');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Build map of audited store names (respect active filters)
+  const auditedMap = {};
+  filteredAudits.forEach(a => {
+    const key = a.storeName;
+    if (!auditedMap[key]) auditedMap[key] = 0;
+    auditedMap[key]++;
+  });
+
+  let auditedCount = 0;
+  let pendingCount = 0;
+
+  // Mini summary on top
+  const summary = el('div', 'status-summary');
+  const wrapper = el('div', 'status-list');
+
+  MASTER_STORES.forEach(master => {
+    const keywords = master.replace(/,/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    let matchedKey = null;
+    let matchedHits = 0;
+
+    Object.keys(auditedMap).forEach(storeName => {
+      const lower = storeName.toLowerCase();
+      const hits = keywords.filter(kw => lower.includes(kw.toLowerCase())).length;
+      if (hits >= 2 || keywords.some(kw => kw.length > 4 && lower.includes(kw.toLowerCase()))) {
+        if (!matchedKey || hits > matchedHits) {
+          matchedKey = storeName;
+          matchedHits = hits;
+        }
+      }
+    });
+
+    const row = el('div', 'status-row');
+    if (matchedKey) {
+      auditedCount++;
+      row.innerHTML = `
+        <span class="status-store-name">${master}</span>
+        <span class="status-badge audited">✓ Audited &middot; ${auditedMap[matchedKey]}</span>`;
+    } else {
+      pendingCount++;
+      row.innerHTML = `
+        <span class="status-store-name">${master}</span>
+        <span class="status-badge pending">⏳ Pending</span>`;
+    }
+    wrapper.appendChild(row);
+  });
+
+  summary.innerHTML = `
+    <div class="status-summary-stat audited">
+      <div class="status-summary-num">${auditedCount}</div>
+      <div class="status-summary-lbl">Audited</div>
+    </div>
+    <div class="status-summary-stat pending">
+      <div class="status-summary-num">${pendingCount}</div>
+      <div class="status-summary-lbl">Pending</div>
+    </div>
+    <div class="status-summary-stat total">
+      <div class="status-summary-num">${MASTER_STORES.length}</div>
+      <div class="status-summary-lbl">Total Stores</div>
+    </div>
+  `;
+
+  container.appendChild(summary);
+  container.appendChild(wrapper);
+}
+
+/* ─── Gap Tracking (Widget 5) ─── */
+function renderGapAnalysis() {
+  const container = document.getElementById('gapCard');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const storeGroups = {};
+  filteredAudits.forEach(a => {
+    if (!storeGroups[a.storeName]) storeGroups[a.storeName] = [];
+    storeGroups[a.storeName].push(a);
+  });
+
+  let hasContent = false;
+
+  Object.keys(storeGroups).sort().forEach(storeName => {
+    const audits = storeGroups[storeName].sort((a, b) =>
+      new Date(a.visitDate || a.timestamp) - new Date(b.visitDate || b.timestamp)
+    );
+
+    if (audits.length < 2) return;
+
+    const prev = audits[audits.length - 2];
+    const latest = audits[audits.length - 1];
+    const rows = [];
+
+    ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach(sId => {
+      const prevCps = (prev.checkpoints && prev.checkpoints[sId]) || {};
+      const lateCps = (latest.checkpoints && latest.checkpoints[sId]) || {};
+      const maxQ = Math.max(
+        ...Object.keys(prevCps).map(k => parseInt(k.replace('Q', '')) || 0),
+        ...Object.keys(lateCps).map(k => parseInt(k.replace('Q', '')) || 0),
+        0
+      );
+
+      for (let q = 1; q <= maxQ; q++) {
+        const qKey = `Q${q}`;
+        const prevAns = prevCps[qKey] ? prevCps[qKey].answer : null;
+        const lateAns = lateCps[qKey] ? lateCps[qKey].answer : null;
+
+        if (prevAns === 'YES' && lateAns === 'YES') continue;
+        if (!prevAns && !lateAns) continue;
+
+        let status = '', statusCls = '';
+        if (prevAns === 'NO' && lateAns === 'YES') {
+          status = '✓ Gap Closed'; statusCls = 'gap-closed';
+        } else if (prevAns === 'NO' && lateAns === 'NO') {
+          status = '● Still Open'; statusCls = 'gap-open';
+        } else if (prevAns === 'YES' && lateAns === 'NO') {
+          status = '⚠ New Issue'; statusCls = 'gap-new';
+        } else {
+          if (lateAns === 'NO') { status = '⚠ New Issue'; statusCls = 'gap-new'; }
+          else if (prevAns === 'NO') { status = '✓ Gap Closed'; statusCls = 'gap-closed'; }
+          else continue;
+        }
+
+        const labels = CHECKPOINT_LABELS[sId] || [];
+        const label = labels[q - 1] || `${sId}-Q${q}`;
+
+        rows.push({ section: SECTION_NAMES[sId], label, prevAns: prevAns || '—', lateAns: lateAns || '—', status, statusCls });
+      }
+    });
+
+    if (!rows.length) return;
+    hasContent = true;
+
+    const header = el('div', 'gap-store-header', `<span class="gap-pin">📍</span> ${storeName}`);
+    container.appendChild(header);
+
+    const table = el('table', 'data-table gap-table');
+    table.innerHTML = `<thead><tr>
+      <th>SECTION</th><th>CHECKPOINT</th><th>PREVIOUS</th><th>LATEST</th><th>STATUS</th>
+    </tr></thead>`;
+    const tbody = el('tbody');
+
+    rows.forEach(r => {
+      const tr = el('tr');
+      tr.innerHTML = `
+        <td style="font-size:12px;color:var(--mid-grey)">${r.section}</td>
+        <td>${r.label}</td>
+        <td><strong style="color:${r.prevAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.prevAns}</strong></td>
+        <td><strong style="color:${r.lateAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.lateAns}</strong></td>
+        <td><span class="${r.statusCls}">${r.status}</span></td>`;
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    const wrap = el('div', 'table-wrap');
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+  });
+
+  if (!hasContent) {
+    container.innerHTML = `
+      <div class="info-banner">
+        <span class="info-banner-icon">${ICONS.refresh}</span>
+        <div>
+          <strong>Awaiting re-audits.</strong> Need at least 2 audits for the same store to compare gaps.
+        </div>
+      </div>`;
+  }
+}
+
+/* ─── Section Failure Chart (Widget 7 / Audit Health) ─── */
+function renderFailureChart() {
+  const container = document.getElementById('failureCard');
+  if (!container) return;
+  container.innerHTML = '';
+  const total = filteredAudits.length;
+
+  if (!total) {
+    container.innerHTML = '<p class="empty-msg">No data</p>';
+    return;
+  }
+
+  ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach(sId => {
+    let totalScore = 0;
+    let maxPossible = 0;
+    filteredAudits.forEach(a => {
+      totalScore += a.sectionScores[sId] || 0;
+      maxPossible += SECTION_COUNTS[sId];
+    });
+
+    const pct = maxPossible > 0 ? Math.round((1 - (totalScore / maxPossible)) * 100) : 0;
+
+    let badgeCls = 'low', badgeText = 'Healthy';
+    if (pct >= 75) { badgeCls = 'high'; badgeText = 'Critical'; }
+    else if (pct >= 25) { badgeCls = 'medium'; badgeText = 'Watch'; }
+
+    const row = el('div', 'failure-row');
+    row.innerHTML = `
+      <div class="failure-label">${sId} &mdash; ${SECTION_NAMES[sId]}</div>
+      <div class="failure-bar-wrap">
+        <div class="failure-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="failure-pct">${pct}%</div>
+      <span class="failure-badge ${badgeCls}">${badgeText}</span>`;
+    container.appendChild(row);
+  });
+}
+
+/* ─── Shared: build sorted store map ─── */
+function buildStoreMap() {
+  const map = {};
+  filteredAudits.forEach(a => {
+    if (!map[a.storeName]) map[a.storeName] = { name: a.storeName, scores: [], count: 0 };
+    map[a.storeName].scores.push(a.totalScore);
+    map[a.storeName].count++;
+  });
+
+  return Object.values(map)
+    .map(s => ({ ...s, avg: s.scores.reduce((a, b) => a + b, 0) / s.count }))
+    .sort((a, b) => b.avg - a.avg);
+}

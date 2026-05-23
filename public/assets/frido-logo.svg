@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 60" width="180" height="60">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&amp;display=swap');
+  </style>
+  <text x="8" y="46" font-family="'Playfair Display', Georgia, serif" font-size="48" font-weight="700" font-style="italic" fill="#1A1A1A" letter-spacing="-1">frido</text>
+</svg>

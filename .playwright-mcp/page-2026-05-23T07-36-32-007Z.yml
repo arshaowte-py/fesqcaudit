@@ -1,0 +1,109 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "Open sidebar"
+    - generic:
+      - generic:
+        - generic:
+          - img "Frido Store Audit — QC Visit Report"
+      - list:
+        - listitem:
+          - generic:
+            - img
+          - generic: Dashboard
+        - listitem:
+          - generic:
+            - img
+          - generic: Audit Form
+        - listitem:
+          - generic:
+            - img
+          - generic: Response Copies
+      - generic:
+        - button "Toggle dark mode":
+          - img
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - img [ref=e10]
+        - textbox "Search stores, audits & links..." [ref=e13]
+        - generic [ref=e14]: Ctrl+K
+    - main [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e18]:
+          - heading "Store Audit Dashboard" [level=1] [ref=e19]
+          - paragraph [ref=e20]: Track audit performance, coverage and section health across every Frido store.
+        - generic [ref=e21]:
+          - combobox [ref=e22] [cursor=pointer]:
+            - option "All Stores" [selected]
+          - combobox [ref=e23] [cursor=pointer]:
+            - option "All Time" [selected]
+            - option "Last 7 Days"
+            - option "Last 30 Days"
+            - option "This Month"
+          - combobox [ref=e24] [cursor=pointer]:
+            - option "All Grades" [selected]
+            - option "Perfect (70)"
+            - option "Good (50–69)"
+            - option "Needs Work (30–49)"
+            - option "Critical (<30)"
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - img [ref=e28]
+            - generic [ref=e32]:
+              - generic [ref=e33]: Performance Overview
+              - generic [ref=e34]: Leadership board, store averages and audit volume
+            - generic [ref=e35]: 3 widgets
+          - generic [ref=e36]:
+            - generic [ref=e39]:
+              - img [ref=e41]
+              - heading "Store Leaderboard" [level=3] [ref=e45]
+            - generic [ref=e49]:
+              - img [ref=e51]
+              - heading "Store-wise Average Score" [level=3] [ref=e52]
+            - generic [ref=e56]:
+              - img [ref=e58]
+              - heading "Audits Conducted Per Store" [level=3] [ref=e59]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - img [ref=e64]
+            - generic [ref=e67]:
+              - generic [ref=e68]: Audit Coverage
+              - generic [ref=e69]: Audited vs pending stores and re-audit gap tracking
+            - generic [ref=e70]: 2 widgets
+          - generic [ref=e71]:
+            - generic [ref=e74]:
+              - img [ref=e76]
+              - heading "Audited vs Pending Stores" [level=3] [ref=e79]
+            - generic [ref=e83]:
+              - img [ref=e85]
+              - heading "Re-Audit Gap Analysis" [level=3] [ref=e89]
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - img [ref=e94]
+            - generic [ref=e96]:
+              - generic [ref=e97]: Audit Health
+              - generic [ref=e98]: Section-level failure rates across all visits
+            - generic [ref=e99]: 1 widget
+          - generic [ref=e103]:
+            - img [ref=e105]
+            - heading "Section Failure Rate" [level=3] [ref=e107]
+    - contentinfo [ref=e109]:
+      - generic [ref=e111]:
+        - generic [ref=e113]:
+          - img "frido" [ref=e114]
+          - generic [ref=e115]: © 2026 ALL RIGHTS RESERVED.
+        - generic [ref=e117]: Freedom To Do More
+        - generic [ref=e119]:
+          - link "Instagram" [ref=e120] [cursor=pointer]:
+            - /url: https://www.instagram.com/myfrido/
+            - img [ref=e121]
+          - link "Facebook" [ref=e124] [cursor=pointer]:
+            - /url: https://www.facebook.com/myfrido/
+            - img [ref=e125]
+          - link "LinkedIn" [ref=e127] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/myfrido
+            - img [ref=e128]
+          - link "X (Twitter)" [ref=e132] [cursor=pointer]:
+            - /url: https://x.com/frido_official
+            - img [ref=e133]

@@ -1,0 +1,51 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "Open sidebar"
+    - generic:
+      - generic:
+        - generic:
+          - img "Frido Store Audit — QC Visit Report"
+      - list:
+        - listitem:
+          - generic:
+            - img
+          - generic: Dashboard
+        - listitem:
+          - generic:
+            - img
+          - generic: Audit Form
+        - listitem:
+          - generic:
+            - img
+          - generic: Response Copies
+      - generic:
+        - button "Toggle dark mode":
+          - img
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - img [ref=e10]
+        - textbox "Search stores, audits & links..." [ref=e13]
+        - generic [ref=e14]: Ctrl+K
+    - main [ref=e15]:
+      - paragraph [ref=e19]: Loading audit data…
+    - contentinfo [ref=e20]:
+      - generic [ref=e22]:
+        - generic [ref=e24]:
+          - img "frido" [ref=e25]
+          - generic [ref=e26]: © 2026 ALL RIGHTS RESERVED.
+        - generic [ref=e28]: Freedom To Do More
+        - generic [ref=e30]:
+          - link "Instagram" [ref=e31] [cursor=pointer]:
+            - /url: https://www.instagram.com/myfrido/
+            - img [ref=e32]
+          - link "Facebook" [ref=e35] [cursor=pointer]:
+            - /url: https://www.facebook.com/myfrido/
+            - img [ref=e36]
+          - link "LinkedIn" [ref=e38] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/myfrido
+            - img [ref=e39]
+          - link "X (Twitter)" [ref=e43] [cursor=pointer]:
+            - /url: https://x.com/frido_official
+            - img [ref=e44]

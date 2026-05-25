@@ -381,6 +381,10 @@ async function deleteResponseCopy(event, timestamp, storeName) {
     if (typeof window.initDashboard === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) {
       window.initDashboard();
     }
+
+    if (window.fridoAuditCache?.forget) {
+      window.fridoAuditCache.forget(timestamp);
+    }
   } catch (err) {
     console.error('Delete response error:', err);
     window.alert(err.message || 'Could not delete this response copy.');

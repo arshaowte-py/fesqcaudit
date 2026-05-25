@@ -170,11 +170,21 @@
     loaded: false
   };
 
+  async function fetchAudits() {
+    const res = await fetch('/api/get-audits', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }
+
   async function loadSharedData() {
     try {
-      const res = await fetch('/api/get-audits');
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      window.fridoData.audits = await res.json();
+      let audits = await fetchAudits();
+      if (!audits.length) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        audits = await fetchAudits();
+      }
+      window.fridoData.audits = audits;
       window.fridoData.loaded = true;
     } catch (err) {
       console.error('Failed to load audit data:', err);
@@ -187,7 +197,7 @@
   // ── Initialization ─────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
     await loadSharedData();
-    switchView('dashboard');
+    await switchView('dashboard');
 
     // Desktop: sidebar starts collapsed (icon strip + accent line)
     // Mobile: also collapsed (off-canvas) by default

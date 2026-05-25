@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { addAudit } from '../../../lib/audit-store';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     const body = await request.json();

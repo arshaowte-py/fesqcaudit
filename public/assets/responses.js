@@ -177,6 +177,12 @@ function openLightbox(src) {
 
 /* ── Render Functions ── */
 
+function getPhotoSrc(data) {
+  if (!data) return '';
+  if (data.startsWith('data:')) return data;
+  return `data:image/jpeg;base64,${data}`;
+}
+
 function renderPhotoGallery(photos, container) {
   if (!photos || photos.length === 0) {
     container.innerHTML = '<div class="no-photos">📷 No photos attached to this audit</div>';
@@ -185,10 +191,10 @@ function renderPhotoGallery(photos, container) {
 
   let html = '<div class="photo-gallery-title">Attached Photos</div>';
   html += '<div class="photo-gallery">';
-  photos.forEach((photo) => {
-    const src = photo.data.startsWith('data:') ? photo.data : `data:image/jpeg;base64,${photo.data}`;
+  photos.forEach((photo, idx) => {
+    const src = getPhotoSrc(photo.data);
     html += `
-      <div class="photo-thumb-card" onclick="openLightbox('${src.replace(/'/g, "\\'")}')">
+      <div class="photo-thumb-card" data-photo-idx="${idx}">
         <img src="${src}" alt="${escapeHTML(photo.section)} – ${escapeHTML(photo.checkpoint)}" loading="lazy" />
         <div class="photo-thumb-info">
           <div class="photo-section">${escapeHTML(photo.section)}</div>
@@ -198,6 +204,10 @@ function renderPhotoGallery(photos, container) {
   });
   html += '</div>';
   container.innerHTML = html;
+
+  container.querySelectorAll('.photo-thumb-card').forEach((card, idx) => {
+    card.addEventListener('click', () => openLightbox(getPhotoSrc(photos[idx].data)));
+  });
 }
 
 function renderSectionDetail(sectionKey, audit) {
@@ -262,6 +272,7 @@ function renderCard(audit, index) {
   const score = Number(audit.totalScore) || 0;
   const colorCls = getScoreColor(score);
   const grade = getGrade(score);
+  const photoCount = (audit.photos || []).length;
 
   let pillsHTML = '';
   Object.keys(SECTION_META).forEach((sKey) => {
@@ -272,16 +283,25 @@ function renderCard(audit, index) {
   });
 
   return `
-    <div class="response-card" data-index="${index}">
+    <div class="response-card" data-index="${index}" data-timestamp="${escapeHTML(audit.timestamp)}">
       <div class="response-card-header" onclick="toggleResponseCard(${index})">
         <div class="response-card-left">
           <div class="response-store-name">${escapeHTML(audit.storeName)}</div>
           <div class="response-meta">
             <span>👤 ${escapeHTML(audit.auditorName)}</span>
             <span>📅 ${formatDate(audit.visitDate)}</span>
+            ${photoCount ? `<span>📷 ${photoCount} photo${photoCount !== 1 ? 's' : ''}</span>` : ''}
           </div>
         </div>
         <div class="response-card-right">
+          <button
+            type="button"
+            class="response-delete-btn"
+            title="Delete this response"
+            aria-label="Delete this response"
+            data-timestamp="${escapeHTML(audit.timestamp)}"
+            data-store="${escapeHTML(audit.storeName)}"
+          >Delete</button>
           <span class="grade-badge ${grade.cls}">${grade.label}</span>
           <span class="response-score ${colorCls}">${score}/70</span>
         </div>
@@ -314,29 +334,66 @@ async function toggleResponseCard(index) {
   const audit = audits[index];
   if (!audit) return;
 
-  // Render detail content if empty
-  if (!detail.innerHTML.trim() || detail.querySelector('.photos-loading') === null) {
+  // Render detail content once
+  if (!detail.dataset.rendered) {
     detail.innerHTML = renderResponseDetail(audit);
+    detail.dataset.rendered = '1';
   }
 
   detail.classList.add('open');
   card.classList.add('expanded');
 
-  // Fetch photos
   const galleryContainer = detail.querySelector('.photo-gallery-container');
   if (galleryContainer) {
-    try {
-      const photos = await fetchPhotos(audit.timestamp, audit.storeName);
-      renderPhotoGallery(photos, galleryContainer);
-    } catch {
-      galleryContainer.innerHTML = '<div class="no-photos">📷 Could not load photos</div>';
-    }
+    const photos = (audit.photos || []).map((photo) => ({
+      section: photo.section,
+      checkpoint: photo.checkpoint,
+      data: photo.data,
+    }));
+    renderPhotoGallery(photos, galleryContainer);
   }
 }
 
+/* ── Delete Response ── */
+
+async function deleteResponseCopy(event, timestamp, storeName) {
+  event.stopPropagation();
+
+  const label = storeName || 'this audit';
+  if (!window.confirm(`Delete the response copy for "${label}"? This cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/delete-audit', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timestamp, storeName }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Delete failed');
+    }
+
+    await window.reloadAuditData();
+    initResponses();
+
+    if (typeof window.initDashboard === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) {
+      window.initDashboard();
+    }
+  } catch (err) {
+    console.error('Delete response error:', err);
+    window.alert(err.message || 'Could not delete this response copy.');
+  }
+}
+
+window.deleteResponseCopy = deleteResponseCopy;
+window.toggleResponseCard = toggleResponseCard;
+window.openLightbox = openLightbox;
+
 /* ── Main Init ── */
 
-function initResponses() {
+window.initResponses = function initResponses() {
   const root = document.getElementById('view-responses');
   if (!root) return;
 
@@ -393,7 +450,12 @@ function initResponses() {
 
   populateResponsesStoreFilter(storeFilter, audits);
 
+  function getAudits() {
+    return Array.isArray(window.fridoData?.audits) ? window.fridoData.audits : [];
+  }
+
   function renderList() {
+    const audits = getAudits();
     const query = (searchInput.value || '').toLowerCase().trim();
     const storeValue = storeFilter.value;
     const dateFil = dateFilter.value;
@@ -436,6 +498,12 @@ function initResponses() {
     });
 
     listEl.innerHTML = cardsHTML;
+
+    listEl.querySelectorAll('.response-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        deleteResponseCopy(event, btn.dataset.timestamp, btn.dataset.store);
+      });
+    });
   }
 
   // Debounced search
@@ -457,7 +525,7 @@ function initResponses() {
 
   // Initial render
   renderList();
-}
+};
 
 function populateResponsesStoreFilter(select, audits) {
   const stores = [...new Set(audits.map((a) => a.storeName).filter(Boolean))]

@@ -207,7 +207,7 @@ function buildSections() {
         </div>
         <div class="cp-extras">
           <input type="text" class="cp-remark" id="remark-${sId}-${qKey}"
-                 placeholder="Add remarks" data-s="${sId}" data-q="${qKey}">
+                 placeholder="Add remarks (optional)" data-s="${sId}" data-q="${qKey}">
           <div class="cp-photo-gallery" id="photogallery-${sId}-${qKey}"></div>
           <button type="button" class="cp-photo-btn" id="photobtn-${sId}-${qKey}"
                   title="Attach photos (0/5)">📷</button>
@@ -415,7 +415,6 @@ function validate() {
       const qKey = `Q${i + 1}`;
       const cp = state[sId][qKey];
       const row = document.getElementById(`row-${sId}-${qKey}`);
-      const remark = document.getElementById(`remark-${sId}-${qKey}`);
       let rowError = false;
 
       if (!cp.answer) {
@@ -427,12 +426,6 @@ function validate() {
         rowError = true;
       } else {
         specInput.classList.remove('error');
-      }
-      if ((cp.answer === 'NO' || cp.answer === 'SKIP') && !cp.remark.trim()) {
-        remark.classList.add('error');
-        rowError = true;
-      } else {
-        remark.classList.remove('error');
       }
 
       if (rowError) {

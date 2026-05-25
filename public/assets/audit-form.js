@@ -510,8 +510,42 @@ async function handleSubmit() {
     hideOverlay('loadingOverlay');
 
     if (data.success) {
+      const cachedAudit = {
+        timestamp: data.timestamp || new Date().toISOString(),
+        storeName: payload.storeName,
+        location: payload.location || '',
+        auditorName: payload.auditorName,
+        auditeeName: payload.auditeeName || '',
+        visitDate: payload.visitDate,
+        sectionScores: Array.isArray(data.sectionScores)
+          ? {
+              S1: data.sectionScores[0] || 0,
+              S2: data.sectionScores[1] || 0,
+              S3: data.sectionScores[2] || 0,
+              S4: data.sectionScores[3] || 0,
+              S5: data.sectionScores[4] || 0,
+              S6: data.sectionScores[5] || 0,
+              S7: data.sectionScores[6] || 0,
+            }
+          : {},
+        totalScore: data.totalScore || 0,
+        checkpoints: payload.sections,
+        photos: payload.photos || [],
+      };
+
+      if (window.fridoAuditCache?.remember) {
+        window.fridoAuditCache.remember(cachedAudit);
+      }
+
       if (typeof window.reloadAuditData === 'function') {
-        await window.reloadAuditData();
+        try {
+          const previousCount = Array.isArray(window.fridoData?.audits)
+            ? window.fridoData.audits.length
+            : 0;
+          await window.reloadAuditData({ expectAtLeast: previousCount + 1 });
+        } catch (err) {
+          console.error('Audit reload after submit failed:', err);
+        }
       }
       showSuccess(data.totalScore, data.sectionScores, payload);
     } else {

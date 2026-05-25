@@ -170,6 +170,90 @@
     loaded: false
   };
 
+  const LOCAL_CACHE_KEY = 'frido:audits:local-cache:v1';
+  const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  function readLocalAuditCache() {
+    try {
+      const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const cutoff = Date.now() - LOCAL_CACHE_TTL_MS;
+      return parsed.filter((audit) => {
+        if (!audit?.timestamp) return false;
+        const t = new Date(audit.timestamp).getTime();
+        return !Number.isNaN(t) && t >= cutoff;
+      });
+    } catch (err) {
+      console.warn('Local audit cache read failed:', err);
+      return [];
+    }
+  }
+
+  function writeLocalAuditCache(audits) {
+    try {
+      localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(audits));
+    } catch (err) {
+      console.warn('Local audit cache write failed:', err);
+    }
+  }
+
+  function rememberSubmittedAudit(audit) {
+    if (!audit?.timestamp) return;
+    const cache = readLocalAuditCache();
+    const filtered = cache.filter((a) => a.timestamp !== audit.timestamp);
+    filtered.push(audit);
+    writeLocalAuditCache(filtered);
+  }
+
+  function forgetCachedAudit(timestamp) {
+    if (!timestamp) return;
+    const cache = readLocalAuditCache();
+    writeLocalAuditCache(cache.filter((a) => a.timestamp !== timestamp));
+  }
+
+  function mergeWithLocalCache(serverAudits) {
+    const merged = new Map();
+    serverAudits.forEach((audit) => {
+      if (audit?.timestamp) merged.set(audit.timestamp, audit);
+    });
+
+    const cache = readLocalAuditCache();
+    cache.forEach((audit) => {
+      if (audit?.timestamp && !merged.has(audit.timestamp)) {
+        merged.set(audit.timestamp, audit);
+      }
+    });
+
+    const list = Array.from(merged.values());
+    list.sort((a, b) => {
+      const ta = new Date(a.timestamp).getTime() || 0;
+      const tb = new Date(b.timestamp).getTime() || 0;
+      return ta - tb;
+    });
+    return list;
+  }
+
+  function reconcileLocalCacheWith(serverAudits) {
+    const serverTimestamps = new Set(
+      serverAudits
+        .map((audit) => audit?.timestamp)
+        .filter(Boolean)
+    );
+    const cache = readLocalAuditCache();
+    const remaining = cache.filter((audit) => !serverTimestamps.has(audit.timestamp));
+    if (remaining.length !== cache.length) {
+      writeLocalAuditCache(remaining);
+    }
+  }
+
+  window.fridoAuditCache = {
+    remember: rememberSubmittedAudit,
+    forget: forgetCachedAudit,
+    read: readLocalAuditCache,
+  };
+
   async function fetchAudits() {
     const res = await fetch('/api/get-audits', { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -177,19 +261,36 @@
     return Array.isArray(data) ? data : [];
   }
 
-  async function loadSharedData() {
-    try {
-      let audits = await fetchAudits();
-      if (!audits.length) {
-        await new Promise((resolve) => setTimeout(resolve, 350));
-        audits = await fetchAudits();
+  async function loadSharedData({ expectAtLeast = 0 } = {}) {
+    /* Upstash KV on Vercel uses eventually-consistent global
+     * replicas, so a fresh write may not yet be visible from the
+     * replica that answers our read. We retry a few times until we
+     * either reach the expected count or run out of attempts, then
+     * merge the response with the local submission cache so the
+     * user always sees their own recent audits. */
+    const attempts = expectAtLeast > 0 ? 6 : 2;
+    const delays = [0, 350, 700, 1200, 1900, 2800];
+
+    let best = [];
+    for (let i = 0; i < attempts; i++) {
+      if (delays[i]) {
+        await new Promise((resolve) => setTimeout(resolve, delays[i]));
       }
-      window.fridoData.audits = audits;
-      window.fridoData.loaded = true;
-    } catch (err) {
-      console.error('Failed to load audit data:', err);
-      window.fridoData.loaded = true;
+      try {
+        const audits = await fetchAudits();
+        if (audits.length > best.length) best = audits;
+        if (best.length >= expectAtLeast && best.length > 0) break;
+      } catch (err) {
+        console.error('Audit fetch attempt failed:', err);
+      }
     }
+
+    const merged = mergeWithLocalCache(best);
+    reconcileLocalCacheWith(best);
+
+    window.fridoData.audits = merged;
+    window.fridoData.loaded = true;
+    return merged;
   }
 
   window.reloadAuditData = loadSharedData;

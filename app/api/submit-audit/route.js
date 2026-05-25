@@ -35,6 +35,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
+      timestamp: result.timestamp,
       rowNumber: result.rowNumber,
       totalScore: result.totalScore,
       sectionScores: result.sectionScores,

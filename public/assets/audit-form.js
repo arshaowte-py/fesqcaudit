@@ -539,10 +539,7 @@ async function handleSubmit() {
 
       if (typeof window.reloadAuditData === 'function') {
         try {
-          const previousCount = Array.isArray(window.fridoData?.audits)
-            ? window.fridoData.audits.length
-            : 0;
-          await window.reloadAuditData({ expectAtLeast: previousCount + 1 });
+          await window.reloadAuditData();
         } catch (err) {
           console.error('Audit reload after submit failed:', err);
         }

@@ -667,6 +667,286 @@
 .grade-needs-work { background: rgba(255, 210, 0, 0.18); color: var(--brand-yellow-strong); }
 .grade-critical   { background: rgba(244, 63, 94, 0.14); color: var(--accent-rose-light); }
 
+/* ─── Interactive charts ─── */
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chart-bar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-primary);
+  transition: background 0.15s ease;
+}
+
+.chart-bar-row:last-child { border-bottom: none; }
+.chart-bar-row:hover { background: rgba(255, 210, 0, 0.05); border-radius: var(--radius-sm); }
+
+.chart-bar-row--failure {
+  grid-template-columns: minmax(140px, 220px) 1fr auto auto;
+}
+
+.chart-bar-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-bar-label:hover { color: var(--brand-yellow-strong); text-decoration: underline; }
+.chart-bar-label--static { cursor: default; }
+.chart-bar-label--static:hover { color: var(--text-primary); text-decoration: none; }
+
+.chart-bar-track {
+  height: 14px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.chart-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  width: 0%;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--bar-delay, 0ms);
+}
+
+.chart-fill-gold {
+  background: linear-gradient(90deg, var(--brand-yellow), var(--brand-yellow-strong));
+}
+
+.chart-fill-ink {
+  background: linear-gradient(90deg, var(--brand-ink), #2D2D2D);
+}
+
+.chart-fill-failure {
+  background: linear-gradient(90deg, #FCA5A5, var(--accent-rose-light));
+}
+
+.chart-bar-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.leaderboard-row-clickable { cursor: pointer; }
+.leaderboard-row-clickable:hover { background: rgba(255, 210, 0, 0.08) !important; }
+
+/* Donut chart */
+.chart-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.chart-donut {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.chart-donut-hole {
+  position: absolute;
+  inset: 22%;
+  background: var(--bg-card);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.chart-donut-total {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.chart-donut-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.chart-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.chart-legend-item:hover {
+  border-color: var(--brand-yellow);
+  background: rgba(255, 210, 0, 0.08);
+}
+
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-legend-dot.grade-perfect { background: #10B981; }
+.chart-legend-dot.grade-good { background: #2563EB; }
+.chart-legend-dot.grade-needs-work { background: #FFD200; }
+.chart-legend-dot.grade-critical { background: #F43F5E; }
+
+.chart-legend-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.chart-legend-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Line chart */
+.chart-line-wrap {
+  position: relative;
+  overflow-x: auto;
+}
+
+.chart-line {
+  width: 100%;
+  min-width: 320px;
+  height: auto;
+  display: block;
+}
+
+.chart-grid-line {
+  stroke: var(--border-primary);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.chart-axis-label {
+  fill: var(--text-tertiary);
+  font-size: 10px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.chart-area {
+  fill: url(#trendFill);
+}
+
+.chart-line-path {
+  fill: none;
+  stroke: var(--brand-yellow-strong);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  fill: var(--brand-yellow-strong);
+  stroke: var(--bg-card);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+
+.chart-point-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.chart-point-group:hover .chart-point { r: 6; }
+
+.chart-point-label {
+  fill: var(--text-tertiary);
+  font-size: 9px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.chart-tooltip {
+  position: absolute;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--brand-ink);
+  color: var(--text-inverse);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: var(--shadow-md);
+}
+
+.chart-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.chart-empty-hint span {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .chart-bar-row,
+  .chart-bar-row--failure {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .chart-donut-wrap { justify-content: center; }
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 700px) {
   .filter-row { flex-direction: column; }

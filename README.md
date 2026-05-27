@@ -11,11 +11,11 @@ All views are served from `public/index.html`.
 
 The app supports two storage modes:
 
-1. **Vercel KV (recommended for production)**
-   - Uses `@vercel/kv`
-   - Persists data across deployments and serverless instances
+1. **Supabase Postgres (recommended for production)**
+   - Uses `@supabase/supabase-js` with the service role key (server-only)
+   - Run `supabase/schema.sql` once in the Supabase SQL Editor
 2. **Local file fallback (development)**
-   - Uses `data/audits.json` automatically when KV env vars are not set
+   - Uses `data/audits.json` automatically when Supabase env vars are not set
 
 ## Local Development
 
@@ -31,9 +31,9 @@ Open: `http://localhost:3000/index.html`
 
 Create `.env.local` from `.env.example`.
 
-### For production on Vercel (KV)
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
+### For production on Vercel (Supabase)
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SERVICE_SECRET_ROLE_KEY`)
 
 If these are missing, local file storage is used.
 
@@ -66,4 +66,4 @@ Required GitHub secrets for CD:
 - `public/assets/audit-form.js` — form logic
 - `public/assets/dashboard.js` — dashboard logic
 - `public/assets/responses.js` — response copies logic
-- `lib/audit-store.js` — storage abstraction (KV + file fallback)
+- `lib/audit-store.js` — storage abstraction (Supabase + file fallback)

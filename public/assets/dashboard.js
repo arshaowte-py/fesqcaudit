@@ -126,9 +126,11 @@ window.initDashboard = function initDashboard() {
     countId: 'perfCount',
   });
   perfGroup.body.appendChild(buildCardShell('leaderboardCard', ICONS.trophy, 'Store Leaderboard'));
+  perfGroup.body.appendChild(buildCardShell('gradeDistCard', ICONS.layers, 'Grade Distribution'));
+  perfGroup.body.appendChild(buildCardShell('scoreTrendCard', ICONS.spark, 'Score Trend'));
   perfGroup.body.appendChild(buildCardShell('storeAvgCard', ICONS.bars, 'Store-wise Average Score'));
   perfGroup.body.appendChild(buildCardShell('auditsPerStoreCard', ICONS.list, 'Audits Conducted Per Store'));
-  perfGroup.countEl.textContent = '3 widgets';
+  perfGroup.countEl.textContent = '5 widgets';
   root.appendChild(perfGroup.section);
 
   /* ── GROUP 2: Audit Coverage ── */
@@ -289,12 +291,75 @@ function applyFilters() {
 
   renderKPIs();
   renderLeaderboard();
+  renderGradeDistribution();
+  renderScoreTrend();
   renderStoreAvg();
   renderAuditsPerStore();
   renderAuditStatus();
   renderGapAnalysis();
   renderFailureChart();
   renderFilterNotice();
+}
+
+function filterByStore(storeName) {
+  const select = document.getElementById('filterStore');
+  if (!select || !storeName) return;
+  select.value = storeName;
+  applyFilters();
+}
+
+/* ─── Interactive chart helpers ─── */
+function renderInteractiveBars(container, items, { fillClass = 'score-row-bar-fill', onBarClick } = {}) {
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = '<p class="empty-msg">No data</p>';
+    return;
+  }
+
+  const maxVal = Math.max(...items.map((i) => i.value), 1);
+  const chart = el('div', 'chart-bars');
+
+  items.forEach((item, index) => {
+    const pct = Math.min(100, (item.value / (item.max || maxVal)) * 100);
+    const row = el('div', 'chart-bar-row');
+    row.style.setProperty('--bar-delay', `${index * 60}ms`);
+
+    const label = el('button', 'chart-bar-label');
+    label.type = 'button';
+    label.textContent = item.label;
+    label.title = item.tooltip || item.label;
+    if (onBarClick) {
+      label.addEventListener('click', () => onBarClick(item));
+    }
+
+    const track = el('div', 'chart-bar-track');
+    const fill = el('div', `chart-bar-fill ${fillClass}`);
+    fill.style.width = '0%';
+    fill.dataset.targetWidth = `${pct}%`;
+    fill.setAttribute('role', 'presentation');
+
+    const value = el('div', 'chart-bar-value');
+    value.textContent = item.display ?? String(item.value);
+
+    track.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(value);
+
+    if (item.tooltip) {
+      row.setAttribute('title', item.tooltip);
+    }
+
+    chart.appendChild(row);
+  });
+
+  container.appendChild(chart);
+
+  requestAnimationFrame(() => {
+    chart.querySelectorAll('.chart-bar-fill').forEach((fillEl) => {
+      fillEl.style.width = fillEl.dataset.targetWidth || '0%';
+    });
+  });
 }
 
 function renderFilterNotice() {
@@ -378,6 +443,9 @@ function renderLeaderboard() {
     const rankContent = rankEmoji || (i + 1);
 
     const tr = el('tr');
+    tr.className = 'leaderboard-row-clickable';
+    tr.title = `Filter dashboard to ${s.name}`;
+    tr.addEventListener('click', () => filterByStore(s.name));
     tr.innerHTML = `
       <td><span class="leaderboard-rank ${rankCls}">${rankContent}</span></td>
       <td style="font-weight:600">${s.name}</td>
@@ -393,57 +461,219 @@ function renderLeaderboard() {
   container.appendChild(wrap);
 }
 
-/* ─── Store-wise Avg Score (Widget 1) ─── */
-function renderStoreAvg() {
-  const container = document.getElementById('storeAvgCard');
+/* ─── Grade Distribution ─── */
+function renderGradeDistribution() {
+  const container = document.getElementById('gradeDistCard');
   if (!container) return;
   container.innerHTML = '';
-  const storeMap = buildStoreMap();
 
-  if (!storeMap.length) {
+  const buckets = [
+    { key: 'perfect', label: 'Perfect', cls: 'grade-perfect', count: 0 },
+    { key: 'good', label: 'Good', cls: 'grade-good', count: 0 },
+    { key: 'needs_work', label: 'Needs Work', cls: 'grade-needs-work', count: 0 },
+    { key: 'critical', label: 'Critical', cls: 'grade-critical', count: 0 },
+  ];
+
+  filteredAudits.forEach((a) => {
+    const score = a.totalScore;
+    if (score === 70) buckets[0].count++;
+    else if (score >= 50) buckets[1].count++;
+    else if (score >= 30) buckets[2].count++;
+    else buckets[3].count++;
+  });
+
+  const total = filteredAudits.length;
+  if (!total) {
     container.innerHTML = '<p class="empty-msg">No data</p>';
     return;
   }
 
-  storeMap.forEach(s => {
-    const pct = Math.min(100, (s.avg / 70 * 100)).toFixed(0);
-    const row = el('div', 'score-row');
-    row.innerHTML = `
-      <div class="score-row-label">${s.name}</div>
-      <div class="score-row-bar-wrap">
-        <div class="score-row-bar-fill" style="width:${pct}%"></div>
-      </div>
-      <div class="score-row-value">${s.avg.toFixed(1)}</div>`;
-    container.appendChild(row);
+  let gradientParts = [];
+  let cursor = 0;
+  const colors = ['#10B981', '#2563EB', '#FFD200', '#F43F5E'];
+
+  buckets.forEach((b, i) => {
+    const pct = (b.count / total) * 100;
+    if (pct <= 0) return;
+    gradientParts.push(`${colors[i]} ${cursor}% ${cursor + pct}%`);
+    cursor += pct;
   });
+
+  const donut = el('div', 'chart-donut-wrap');
+  donut.innerHTML = `
+    <div class="chart-donut" style="background: conic-gradient(${gradientParts.join(', ')})">
+      <div class="chart-donut-hole">
+        <div class="chart-donut-total">${total}</div>
+        <div class="chart-donut-label">audits</div>
+      </div>
+    </div>
+    <div class="chart-donut-legend"></div>`;
+
+  const legend = donut.querySelector('.chart-donut-legend');
+  buckets.forEach((b) => {
+    if (!b.count) return;
+    const pct = Math.round((b.count / total) * 100);
+    const item = el('button', 'chart-legend-item');
+    item.type = 'button';
+    item.innerHTML = `
+      <span class="chart-legend-dot ${b.cls}"></span>
+      <span class="chart-legend-text">${b.label}</span>
+      <span class="chart-legend-value">${b.count} (${pct}%)</span>`;
+    item.title = `Filter by ${b.label} grade`;
+    item.addEventListener('click', () => {
+      const select = document.getElementById('filterGrade');
+      if (select) {
+        select.value = b.key;
+        applyFilters();
+      }
+    });
+    legend.appendChild(item);
+  });
+
+  container.appendChild(donut);
+}
+
+/* ─── Score Trend (line chart) ─── */
+function renderScoreTrend() {
+  const container = document.getElementById('scoreTrendCard');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (filteredAudits.length < 2) {
+    container.innerHTML = `
+      <div class="chart-empty-hint">
+        <span>${ICONS.spark}</span>
+        <p>Score trend appears once you have 2 or more audits in the current filter.</p>
+      </div>`;
+    return;
+  }
+
+  const points = [...filteredAudits]
+    .sort((a, b) => {
+      const da = parseVisitDate(a.visitDate || a.timestamp)?.getTime() || 0;
+      const db = parseVisitDate(b.visitDate || b.timestamp)?.getTime() || 0;
+      return da - db;
+    })
+    .map((a) => ({
+      score: a.totalScore,
+      label: formatTrendLabel(a.visitDate || a.timestamp),
+      store: a.storeName,
+      tooltip: `${a.storeName} · ${formatTrendLabel(a.visitDate || a.timestamp)} · ${a.totalScore}/70`,
+    }));
+
+  const width = 480;
+  const height = 160;
+  const pad = { top: 16, right: 16, bottom: 28, left: 36 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const maxScore = 70;
+
+  const coords = points.map((p, i) => {
+    const x = pad.left + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
+    const y = pad.top + innerH - (p.score / maxScore) * innerH;
+    return { ...p, x, y };
+  });
+
+  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${pad.top + innerH} L ${coords[0].x.toFixed(1)} ${pad.top + innerH} Z`;
+
+  const wrap = el('div', 'chart-line-wrap');
+  wrap.innerHTML = `
+    <svg class="chart-line" viewBox="0 0 ${width} ${height}" role="img" aria-label="Audit score trend">
+      <defs>
+        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(255,210,0,0.35)"/>
+          <stop offset="100%" stop-color="rgba(255,210,0,0.02)"/>
+        </linearGradient>
+      </defs>
+      ${[0, 35, 70].map((tick) => {
+        const y = pad.top + innerH - (tick / maxScore) * innerH;
+        return `
+          <line class="chart-grid-line" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"/>
+          <text class="chart-axis-label" x="${pad.left - 8}" y="${y + 4}" text-anchor="end">${tick}</text>`;
+      }).join('')}
+      <path class="chart-area" d="${areaPath}"/>
+      <path class="chart-line-path" d="${linePath}"/>
+      ${coords.map((c) => `
+        <g class="chart-point-group">
+          <circle class="chart-point-hit" cx="${c.x}" cy="${c.y}" r="12"/>
+          <circle class="chart-point" cx="${c.x}" cy="${c.y}" r="4.5" data-tooltip="${escapeAttr(c.tooltip)}"/>
+          <text class="chart-point-label" x="${c.x}" y="${height - 6}" text-anchor="middle">${c.label}</text>
+        </g>`).join('')}
+    </svg>
+    <div class="chart-tooltip" id="scoreTrendTooltip" hidden></div>`;
+
+  const tooltip = wrap.querySelector('#scoreTrendTooltip');
+  wrap.querySelectorAll('.chart-point').forEach((dot) => {
+    dot.addEventListener('mouseenter', (e) => {
+      tooltip.hidden = false;
+      tooltip.textContent = dot.dataset.tooltip || '';
+      const rect = wrap.getBoundingClientRect();
+      tooltip.style.left = `${e.clientX - rect.left}px`;
+      tooltip.style.top = `${e.clientY - rect.top - 36}px`;
+    });
+    dot.addEventListener('mouseleave', () => {
+      tooltip.hidden = true;
+    });
+  });
+
+  container.appendChild(wrap);
+}
+
+function formatTrendLabel(dateStr) {
+  const d = parseVisitDate(dateStr);
+  if (!d) return '—';
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;');
+}
+
+/* ─── Store-wise Avg Score (Widget 1) ─── */
+function renderStoreAvg() {
+  const container = document.getElementById('storeAvgCard');
+  if (!container) return;
+  const storeMap = buildStoreMap();
+
+  renderInteractiveBars(
+    container,
+    storeMap.map((s) => ({
+      label: s.name,
+      value: s.avg,
+      max: 70,
+      display: s.avg.toFixed(1),
+      tooltip: `${s.name} · avg ${s.avg.toFixed(1)}/70 · ${s.count} audit${s.count !== 1 ? 's' : ''}`,
+    })),
+    {
+      fillClass: 'chart-fill-gold',
+      onBarClick: (item) => filterByStore(item.label),
+    }
+  );
 }
 
 /* ─── Audits Per Store (Widget 6) ─── */
 function renderAuditsPerStore() {
   const container = document.getElementById('auditsPerStoreCard');
   if (!container) return;
-  container.innerHTML = '';
   const storeMap = buildStoreMap();
-
-  if (!storeMap.length) {
-    container.innerHTML = '<p class="empty-msg">No data</p>';
-    return;
-  }
-
   const sorted = [...storeMap].sort((a, b) => b.count - a.count);
-  const maxCount = Math.max(...sorted.map(s => s.count), 1);
+  const maxCount = Math.max(...sorted.map((s) => s.count), 1);
 
-  sorted.forEach(s => {
-    const pct = (s.count / maxCount) * 100;
-    const row = el('div', 'count-row');
-    row.innerHTML = `
-      <div class="count-row-label">${s.name}</div>
-      <div class="count-row-bar-wrap">
-        <div class="count-row-bar-fill" style="width:${pct}%"></div>
-      </div>
-      <div class="count-row-value">${s.count}</div>`;
-    container.appendChild(row);
-  });
+  renderInteractiveBars(
+    container,
+    sorted.map((s) => ({
+      label: s.name,
+      value: s.count,
+      max: maxCount,
+      display: String(s.count),
+      tooltip: `${s.name} · ${s.count} audit${s.count !== 1 ? 's' : ''} · avg ${s.avg.toFixed(1)}/70`,
+    })),
+    {
+      fillClass: 'chart-fill-ink',
+      onBarClick: (item) => filterByStore(item.label),
+    }
+  );
 }
 
 /* ─── Audited vs Pending (Widget 4) ─── */
@@ -631,7 +861,8 @@ function renderFailureChart() {
     return;
   }
 
-  ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach(sId => {
+  const failureItems = [];
+  ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach((sId) => {
     let totalScore = 0;
     let maxPossible = 0;
     filteredAudits.forEach(a => {
@@ -645,15 +876,51 @@ function renderFailureChart() {
     if (pct >= 75) { badgeCls = 'high'; badgeText = 'Critical'; }
     else if (pct >= 25) { badgeCls = 'medium'; badgeText = 'Watch'; }
 
-    const row = el('div', 'failure-row');
-    row.innerHTML = `
-      <div class="failure-label">${sId} &mdash; ${SECTION_NAMES[sId]}</div>
-      <div class="failure-bar-wrap">
-        <div class="failure-bar" style="width:${pct}%"></div>
-      </div>
-      <div class="failure-pct">${pct}%</div>
-      <span class="failure-badge ${badgeCls}">${badgeText}</span>`;
-    container.appendChild(row);
+    failureItems.push({
+      label: `${sId} — ${SECTION_NAMES[sId]}`,
+      value: pct,
+      max: 100,
+      display: `${pct}%`,
+      badgeCls,
+      badgeText,
+      tooltip: `${SECTION_NAMES[sId]} · ${pct}% failure rate · ${badgeText}`,
+    });
+  });
+
+  const chart = el('div', 'chart-bars chart-bars--failure');
+  failureItems.forEach((item, index) => {
+    const row = el('div', 'chart-bar-row chart-bar-row--failure');
+    row.style.setProperty('--bar-delay', `${index * 50}ms`);
+    row.title = item.tooltip;
+
+    const label = el('div', 'chart-bar-label chart-bar-label--static');
+    label.textContent = item.label;
+
+    const track = el('div', 'chart-bar-track');
+    const fill = el('div', 'chart-bar-fill chart-fill-failure');
+    fill.style.width = '0%';
+    fill.dataset.targetWidth = `${item.value}%`;
+    track.appendChild(fill);
+
+    const value = el('div', 'chart-bar-value');
+    value.textContent = item.display;
+
+    const badge = el('span', `failure-badge ${item.badgeCls}`);
+    badge.textContent = item.badgeText;
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(value);
+    row.appendChild(badge);
+    chart.appendChild(row);
+  });
+
+  container.appendChild(chart);
+
+  requestAnimationFrame(() => {
+    chart.querySelectorAll('.chart-bar-fill').forEach((fillEl) => {
+      fillEl.style.width = fillEl.dataset.targetWidth || '0%';
+    });
   });
 }
 

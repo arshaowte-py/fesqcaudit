@@ -261,32 +261,16 @@
     return Array.isArray(data) ? data : [];
   }
 
-  async function loadSharedData({ expectAtLeast = 0 } = {}) {
-    /* Upstash KV on Vercel uses eventually-consistent global
-     * replicas, so a fresh write may not yet be visible from the
-     * replica that answers our read. We retry a few times until we
-     * either reach the expected count or run out of attempts, then
-     * merge the response with the local submission cache so the
-     * user always sees their own recent audits. */
-    const attempts = expectAtLeast > 0 ? 6 : 2;
-    const delays = [0, 350, 700, 1200, 1900, 2800];
-
-    let best = [];
-    for (let i = 0; i < attempts; i++) {
-      if (delays[i]) {
-        await new Promise((resolve) => setTimeout(resolve, delays[i]));
-      }
-      try {
-        const audits = await fetchAudits();
-        if (audits.length > best.length) best = audits;
-        if (best.length >= expectAtLeast && best.length > 0) break;
-      } catch (err) {
-        console.error('Audit fetch attempt failed:', err);
-      }
+  async function loadSharedData() {
+    let serverAudits = [];
+    try {
+      serverAudits = await fetchAudits();
+    } catch (err) {
+      console.error('Audit fetch failed:', err);
     }
 
-    const merged = mergeWithLocalCache(best);
-    reconcileLocalCacheWith(best);
+    const merged = mergeWithLocalCache(serverAudits);
+    reconcileLocalCacheWith(serverAudits);
 
     window.fridoData.audits = merged;
     window.fridoData.loaded = true;

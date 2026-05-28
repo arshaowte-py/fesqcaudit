@@ -73,7 +73,40 @@ const ICONS = {
   alert: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   layers: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
   spark: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  chevron: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
 };
+
+function buildCollapsibleStoreBlock({ storeName, metaHtml = '', count, countLabel, contentNode, startExpanded = false }) {
+  const block = el('div', 'store-accordion');
+  const toggle = el('button', 'store-accordion-toggle');
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', startExpanded ? 'true' : 'false');
+
+  const label = countLabel || `${count} item${count !== 1 ? 's' : ''}`;
+  toggle.innerHTML = `
+    <span class="store-accordion-chevron" aria-hidden="true">${ICONS.chevron}</span>
+    <span class="gap-pin">📍</span>
+    <span class="store-accordion-title">${storeName}</span>
+    ${metaHtml}
+    <span class="store-accordion-count">${label}</span>`;
+
+  const panel = el('div', 'store-accordion-panel');
+  panel.hidden = !startExpanded;
+  panel.appendChild(contentNode);
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    panel.hidden = expanded;
+    block.classList.toggle('store-accordion--open', !expanded);
+  });
+
+  if (startExpanded) block.classList.add('store-accordion--open');
+
+  block.appendChild(toggle);
+  block.appendChild(panel);
+  return block;
+}
 
 /* ═══════════════════════════════════════════
    INIT — called by the shell
@@ -824,9 +857,6 @@ function renderGapAnalysis() {
     if (!rows.length) return;
     hasContent = true;
 
-    const header = el('div', 'gap-store-header', `<span class="gap-pin">📍</span> ${storeName}`);
-    container.appendChild(header);
-
     const table = el('table', 'data-table gap-table');
     table.innerHTML = `<thead><tr>
       <th>SECTION</th><th>CHECKPOINT</th><th>PREVIOUS</th><th>LATEST</th><th>STATUS</th>
@@ -847,7 +877,12 @@ function renderGapAnalysis() {
     table.appendChild(tbody);
     const wrap = el('div', 'table-wrap');
     wrap.appendChild(table);
-    container.appendChild(wrap);
+    container.appendChild(buildCollapsibleStoreBlock({
+      storeName,
+      count: rows.length,
+      countLabel: `${rows.length} gap${rows.length !== 1 ? 's' : ''}`,
+      contentNode: wrap,
+    }));
   });
 
   if (!hasContent) {
@@ -916,13 +951,6 @@ function renderIssueCheckpoints() {
 
     rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
-    const header = el(
-      'div',
-      'gap-store-header',
-      `<span class="gap-pin">📍</span> ${storeName} <span class="gap-store-meta">· Latest visit ${visitLabel}</span>`
-    );
-    container.appendChild(header);
-
     const table = el('table', 'data-table gap-table');
     table.innerHTML = `<thead><tr>
       <th>SECTION</th><th>CHECKPOINT</th><th>STATUS</th>
@@ -942,7 +970,13 @@ function renderIssueCheckpoints() {
     table.appendChild(tbody);
     const wrap = el('div', 'table-wrap');
     wrap.appendChild(table);
-    container.appendChild(wrap);
+    container.appendChild(buildCollapsibleStoreBlock({
+      storeName,
+      metaHtml: `<span class="gap-store-meta">· Latest visit ${visitLabel}</span>`,
+      count: rows.length,
+      countLabel: `${rows.length} issue${rows.length !== 1 ? 's' : ''}`,
+      contentNode: wrap,
+    }));
   });
 
   if (!hasContent) {

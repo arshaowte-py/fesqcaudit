@@ -444,26 +444,91 @@
 .gap-open   { color: var(--accent-rose-light); font-weight: 700; }
 .gap-new    { color: var(--brand-yellow-strong); font-weight: 700; }
 
-.gap-store-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 10px 0 8px;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--brand-yellow);
-  margin-top: var(--space-md);
-}
-
-.gap-store-header:first-child { margin-top: 0; }
 .gap-pin { font-size: 16px; }
 .gap-store-meta {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
 }
-.gap-table { margin-bottom: 12px; }
+.gap-table { margin-bottom: 0; }
+
+/* ─── Collapsible store blocks ─── */
+.store-accordion {
+  margin-top: var(--space-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.store-accordion:first-child { margin-top: 0; }
+
+.store-accordion-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+}
+
+.store-accordion-toggle:hover {
+  background: rgba(255, 210, 0, 0.08);
+}
+
+.store-accordion--open .store-accordion-toggle {
+  border-bottom-color: var(--brand-yellow);
+}
+
+.store-accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.store-accordion-chevron svg { width: 16px; height: 16px; }
+
+.store-accordion--open .store-accordion-chevron {
+  transform: rotate(90deg);
+}
+
+.store-accordion-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.store-accordion-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--accent-rose-light);
+  flex-shrink: 0;
+}
+
+.store-accordion-panel {
+  padding: 0 0 4px;
+}
+
+.store-accordion-panel[hidden] {
+  display: none;
+}
 
 .info-banner {
   display: flex;

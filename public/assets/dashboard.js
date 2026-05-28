@@ -146,7 +146,18 @@ window.initDashboard = function initDashboard() {
   coverGroup.countEl.textContent = '2 widgets';
   root.appendChild(coverGroup.section);
 
-  /* ── GROUP 3: Audit Health ── */
+  /* ── GROUP 3: Failed & Skipped Checkpoints ── */
+  const issuesGroup = buildSectionGroup({
+    icon: ICONS.list,
+    title: 'Failed & Skipped Checkpoints',
+    subtitle: 'NO and SKIP from each store\'s latest submitted audit',
+    countId: 'issuesCount',
+  });
+  issuesGroup.body.appendChild(buildCardShell('issuesCard', ICONS.alert, 'Store-wise NO & SKIP'));
+  issuesGroup.countEl.textContent = '1 widget';
+  root.appendChild(issuesGroup.section);
+
+  /* ── GROUP 4: Audit Health ── */
   const healthGroup = buildSectionGroup({
     icon: ICONS.alert,
     title: 'Audit Health',
@@ -297,6 +308,7 @@ function applyFilters() {
   renderAuditsPerStore();
   renderAuditStatus();
   renderGapAnalysis();
+  renderIssueCheckpoints();
   renderFailureChart();
   renderFilterNotice();
 }
@@ -844,6 +856,101 @@ function renderGapAnalysis() {
         <span class="info-banner-icon">${ICONS.refresh}</span>
         <div>
           <strong>Awaiting re-audits.</strong> Need at least 2 audits for the same store to compare gaps.
+        </div>
+      </div>`;
+  }
+}
+
+/* ─── Failed & Skipped Checkpoints (store-wise, latest audit) ─── */
+function getLatestAuditByStore(audits) {
+  const map = {};
+  audits.forEach((audit) => {
+    const existing = map[audit.storeName];
+    const auditTime = parseVisitDate(audit.visitDate || audit.timestamp)?.getTime() || 0;
+    const existingTime = existing
+      ? (parseVisitDate(existing.visitDate || existing.timestamp)?.getTime() || 0)
+      : -1;
+    if (!existing || auditTime >= existingTime) map[audit.storeName] = audit;
+  });
+  return map;
+}
+
+function renderIssueCheckpoints() {
+  const container = document.getElementById('issuesCard');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const latestByStore = getLatestAuditByStore(filteredAudits);
+  let hasContent = false;
+
+  Object.keys(latestByStore).sort().forEach((storeName) => {
+    const audit = latestByStore[storeName];
+    const visitLabel = formatTrendLabel(audit.visitDate || audit.timestamp);
+    const rows = [];
+
+    ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach((sId) => {
+      const cps = (audit.checkpoints && audit.checkpoints[sId]) || {};
+      const maxQ = Math.max(
+        SECTION_COUNTS[sId] || 0,
+        ...Object.keys(cps).map((k) => parseInt(k.replace('Q', ''), 10) || 0),
+        0
+      );
+
+      for (let q = 1; q <= maxQ; q++) {
+        const qKey = `Q${q}`;
+        const answer = cps[qKey] ? cps[qKey].answer : null;
+        if (answer !== 'NO' && answer !== 'SKIP') continue;
+
+        const labels = CHECKPOINT_LABELS[sId] || [];
+        rows.push({
+          section: SECTION_NAMES[sId],
+          label: labels[q - 1] || `${sId}-Q${q}`,
+          answer,
+          sortKey: `${sId}-Q${String(q).padStart(2, '0')}`,
+        });
+      }
+    });
+
+    if (!rows.length) return;
+    hasContent = true;
+
+    rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+    const header = el(
+      'div',
+      'gap-store-header',
+      `<span class="gap-pin">📍</span> ${storeName} <span class="gap-store-meta">· Latest visit ${visitLabel}</span>`
+    );
+    container.appendChild(header);
+
+    const table = el('table', 'data-table gap-table');
+    table.innerHTML = `<thead><tr>
+      <th>SECTION</th><th>CHECKPOINT</th><th>STATUS</th>
+    </tr></thead>`;
+    const tbody = el('tbody');
+
+    rows.forEach((r) => {
+      const answerCls = r.answer === 'NO' ? 'answer-no' : 'answer-skip';
+      const tr = el('tr');
+      tr.innerHTML = `
+        <td style="font-size:12px;color:var(--mid-grey)">${r.section}</td>
+        <td>${r.label}</td>
+        <td><strong class="${answerCls}">${r.answer}</strong></td>`;
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    const wrap = el('div', 'table-wrap');
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+  });
+
+  if (!hasContent) {
+    container.innerHTML = `
+      <div class="info-banner">
+        <span class="info-banner-icon">${ICONS.check}</span>
+        <div>
+          <strong>All clear.</strong> No checkpoints marked NO or SKIP in the current filter.
         </div>
       </div>`;
   }

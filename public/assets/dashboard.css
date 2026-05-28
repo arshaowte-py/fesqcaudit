@@ -458,6 +458,11 @@
 
 .gap-store-header:first-child { margin-top: 0; }
 .gap-pin { font-size: 16px; }
+.gap-store-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
 .gap-table { margin-bottom: 12px; }
 
 .info-banner {

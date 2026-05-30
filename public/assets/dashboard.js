@@ -76,6 +76,39 @@ const ICONS = {
   chevron: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
 };
 
+function setStoreAccordionOpen(block, open) {
+  const toggle = block.querySelector('.store-accordion-toggle');
+  const panel = block.querySelector('.store-accordion-panel');
+  if (!toggle || !panel) return;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  panel.hidden = !open;
+  block.classList.toggle('store-accordion--open', open);
+}
+
+function setAllStoreAccordions(container, open) {
+  container.querySelectorAll('.store-accordion').forEach((block) => {
+    setStoreAccordionOpen(block, open);
+  });
+}
+
+function prependStoreAccordionToolbar(container) {
+  const existing = container.querySelector('.store-accordion-toolbar');
+  if (existing) existing.remove();
+
+  const bar = el('div', 'store-accordion-toolbar');
+  const expandBtn = el('button', 'store-accordion-toolbar-btn');
+  expandBtn.type = 'button';
+  expandBtn.textContent = 'Expand all stores';
+  const collapseBtn = el('button', 'store-accordion-toolbar-btn');
+  collapseBtn.type = 'button';
+  collapseBtn.textContent = 'Collapse all stores';
+  expandBtn.addEventListener('click', () => setAllStoreAccordions(container, true));
+  collapseBtn.addEventListener('click', () => setAllStoreAccordions(container, false));
+  bar.appendChild(expandBtn);
+  bar.appendChild(collapseBtn);
+  container.insertBefore(bar, container.firstChild);
+}
+
 function buildCollapsibleStoreBlock({ storeName, metaHtml = '', count, countLabel, contentNode, startExpanded = false }) {
   const block = el('div', 'store-accordion');
   const toggle = el('button', 'store-accordion-toggle');
@@ -92,13 +125,13 @@ function buildCollapsibleStoreBlock({ storeName, metaHtml = '', count, countLabe
 
   const panel = el('div', 'store-accordion-panel');
   panel.hidden = !startExpanded;
-  panel.appendChild(contentNode);
+  const scroll = el('div', 'store-accordion-panel-scroll');
+  scroll.appendChild(contentNode);
+  panel.appendChild(scroll);
 
   toggle.addEventListener('click', () => {
     const expanded = toggle.getAttribute('aria-expanded') === 'true';
-    toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-    panel.hidden = expanded;
-    block.classList.toggle('store-accordion--open', !expanded);
+    setStoreAccordionOpen(block, !expanded);
   });
 
   if (startExpanded) block.classList.add('store-accordion--open');
@@ -175,7 +208,7 @@ window.initDashboard = function initDashboard() {
     iconVariant: 'blue',
   });
   coverGroup.body.appendChild(buildCardShell('auditStatusCard', ICONS.check, 'Audited vs Pending Stores'));
-  coverGroup.body.appendChild(buildCardShell('gapCard', ICONS.refresh, 'Re-Audit Gap Analysis'));
+  coverGroup.body.appendChild(buildCardShell('gapCard', ICONS.refresh, 'Re-Audit Gap Analysis', { collapsible: true }));
   coverGroup.countEl.textContent = '2 widgets';
   root.appendChild(coverGroup.section);
 
@@ -186,7 +219,7 @@ window.initDashboard = function initDashboard() {
     subtitle: 'NO and SKIP from each store\'s latest submitted audit',
     countId: 'issuesCount',
   });
-  issuesGroup.body.appendChild(buildCardShell('issuesCard', ICONS.alert, 'Store-wise NO & SKIP'));
+  issuesGroup.body.appendChild(buildCardShell('issuesCard', ICONS.alert, 'Store-wise NO & SKIP', { collapsible: true }));
   issuesGroup.countEl.textContent = '1 widget';
   root.appendChild(issuesGroup.section);
 
@@ -261,16 +294,41 @@ function buildSectionGroup({ icon, title, subtitle, countId, iconVariant }) {
 }
 
 /* ─── Card skeleton ─── */
-function buildCardShell(id, icon, title) {
+function buildCardShell(id, icon, title, { collapsible = false, startExpanded = false } = {}) {
   const card = el('div', 'card');
-  card.innerHTML = `
-    <div class="card-head">
-      <div class="card-head-left">
-        <span class="card-icon">${icon}</span>
-        <h3 class="card-title">${title}</h3>
-      </div>
+  const headMarkup = `
+    <div class="card-head-left">
+      <span class="card-icon">${icon}</span>
+      <h3 class="card-title">${title}</h3>
     </div>
-    <div id="${id}" class="card-body"></div>`;
+    ${collapsible ? `<span class="card-head-chevron" aria-hidden="true">${ICONS.chevron}</span>` : ''}`;
+
+  const body = el('div', 'card-body');
+  body.id = id;
+
+  if (collapsible) {
+    card.classList.add('card--collapsible');
+    const head = el('button', 'card-head card-head-toggle');
+    head.type = 'button';
+    head.innerHTML = headMarkup;
+    head.setAttribute('aria-expanded', startExpanded ? 'true' : 'false');
+    head.setAttribute('aria-controls', id);
+    body.hidden = !startExpanded;
+    card.classList.toggle('card--open', startExpanded);
+    head.addEventListener('click', () => {
+      const expanded = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      body.hidden = expanded;
+      card.classList.toggle('card--open', !expanded);
+    });
+    card.appendChild(head);
+  } else {
+    const head = el('div', 'card-head');
+    head.innerHTML = headMarkup;
+    card.appendChild(head);
+  }
+
+  card.appendChild(body);
   return card;
 }
 
@@ -805,6 +863,7 @@ function renderGapAnalysis() {
   });
 
   let hasContent = false;
+  let storeBlockCount = 0;
 
   Object.keys(storeGroups).sort().forEach(storeName => {
     const audits = storeGroups[storeName].sort((a, b) =>
@@ -856,6 +915,7 @@ function renderGapAnalysis() {
 
     if (!rows.length) return;
     hasContent = true;
+    storeBlockCount += 1;
 
     const table = el('table', 'data-table gap-table');
     table.innerHTML = `<thead><tr>
@@ -893,6 +953,8 @@ function renderGapAnalysis() {
           <strong>Awaiting re-audits.</strong> Need at least 2 audits for the same store to compare gaps.
         </div>
       </div>`;
+  } else if (storeBlockCount > 0) {
+    prependStoreAccordionToolbar(container);
   }
 }
 
@@ -917,6 +979,7 @@ function renderIssueCheckpoints() {
 
   const latestByStore = getLatestAuditByStore(filteredAudits);
   let hasContent = false;
+  let storeBlockCount = 0;
 
   Object.keys(latestByStore).sort().forEach((storeName) => {
     const audit = latestByStore[storeName];
@@ -948,6 +1011,7 @@ function renderIssueCheckpoints() {
 
     if (!rows.length) return;
     hasContent = true;
+    storeBlockCount += 1;
 
     rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
@@ -987,6 +1051,8 @@ function renderIssueCheckpoints() {
           <strong>All clear.</strong> No checkpoints marked NO or SKIP in the current filter.
         </div>
       </div>`;
+  } else if (storeBlockCount > 0) {
+    prependStoreAccordionToolbar(container);
   }
 }
 

@@ -604,6 +604,85 @@
   color: var(--text-primary);
 }
 
+/* ─── Section groups inside store accordions ─── */
+.section-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-accordion {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.section-accordion-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+}
+
+.section-accordion-toggle:hover {
+  background: rgba(255, 210, 0, 0.08);
+}
+
+.section-accordion--open .section-accordion-toggle {
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.section-accordion-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.section-accordion--open .section-accordion-chevron {
+  transform: rotate(90deg);
+}
+
+.section-accordion-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-accordion-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.section-accordion-panel[hidden] {
+  display: none;
+}
+
+.section-accordion-table {
+  margin: 0;
+}
+
+.card--collapsible .card-expand-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .info-banner {
   display: flex;
   align-items: center;

@@ -92,21 +92,119 @@ function setAllStoreAccordions(container, open) {
 }
 
 function prependStoreAccordionToolbar(container) {
-  const existing = container.querySelector('.store-accordion-toolbar');
-  if (existing) existing.remove();
+  const existingToolbar = container.querySelector('.store-accordion-toolbar');
+  if (existingToolbar) existingToolbar.remove();
+  const existingHint = container.querySelector('.card-expand-hint');
+  if (existingHint) existingHint.remove();
+
+  const hint = el('p', 'card-expand-hint');
+  hint.textContent =
+    'Click a store row to expand it, then click a section name to show checkpoints.';
+  container.insertBefore(hint, container.firstChild);
 
   const bar = el('div', 'store-accordion-toolbar');
-  const expandBtn = el('button', 'store-accordion-toolbar-btn');
-  expandBtn.type = 'button';
-  expandBtn.textContent = 'Expand all stores';
-  const collapseBtn = el('button', 'store-accordion-toolbar-btn');
-  collapseBtn.type = 'button';
-  collapseBtn.textContent = 'Collapse all stores';
-  expandBtn.addEventListener('click', () => setAllStoreAccordions(container, true));
-  collapseBtn.addEventListener('click', () => setAllStoreAccordions(container, false));
-  bar.appendChild(expandBtn);
-  bar.appendChild(collapseBtn);
+  const expandStoresBtn = el('button', 'store-accordion-toolbar-btn');
+  expandStoresBtn.type = 'button';
+  expandStoresBtn.textContent = 'Expand all stores';
+  const collapseStoresBtn = el('button', 'store-accordion-toolbar-btn');
+  collapseStoresBtn.type = 'button';
+  collapseStoresBtn.textContent = 'Collapse all stores';
+  const expandSectionsBtn = el('button', 'store-accordion-toolbar-btn');
+  expandSectionsBtn.type = 'button';
+  expandSectionsBtn.textContent = 'Expand all sections';
+  const collapseSectionsBtn = el('button', 'store-accordion-toolbar-btn');
+  collapseSectionsBtn.type = 'button';
+  collapseSectionsBtn.textContent = 'Collapse all sections';
+
+  expandStoresBtn.addEventListener('click', () => setAllStoreAccordions(container, true));
+  collapseStoresBtn.addEventListener('click', () => setAllStoreAccordions(container, false));
+  expandSectionsBtn.addEventListener('click', () => setAllSectionAccordions(container, true));
+  collapseSectionsBtn.addEventListener('click', () => setAllSectionAccordions(container, false));
+
+  bar.appendChild(expandStoresBtn);
+  bar.appendChild(collapseStoresBtn);
+  bar.appendChild(expandSectionsBtn);
+  bar.appendChild(collapseSectionsBtn);
   container.insertBefore(bar, container.firstChild);
+}
+
+function setSectionAccordionOpen(block, open) {
+  const toggle = block.querySelector('.section-accordion-toggle');
+  const panel = block.querySelector('.section-accordion-panel');
+  if (!toggle || !panel) return;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  panel.hidden = !open;
+  block.classList.toggle('section-accordion--open', open);
+}
+
+function setAllSectionAccordions(container, open) {
+  container.querySelectorAll('.section-accordion').forEach((block) => {
+    setSectionAccordionOpen(block, open);
+  });
+}
+
+/**
+ * Renders rows grouped by section; each section collapses its checkpoint rows.
+ */
+function buildSectionGroupedTable(rows, { headers, rowToCells }) {
+  const root = el('div', 'section-accordion-list');
+  const bySection = new Map();
+
+  rows.forEach((row) => {
+    const key = row.section || 'Other';
+    if (!bySection.has(key)) bySection.set(key, []);
+    bySection.get(key).push(row);
+  });
+
+  [...bySection.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([section, sectionRows]) => {
+      const block = el('div', 'section-accordion');
+      const toggle = el('button', 'section-accordion-toggle');
+      toggle.type = 'button';
+      toggle.setAttribute('aria-expanded', 'false');
+
+      const countLabel = `${sectionRows.length} item${sectionRows.length !== 1 ? 's' : ''}`;
+      toggle.innerHTML = `
+        <span class="section-accordion-chevron" aria-hidden="true">${ICONS.chevron}</span>
+        <span class="section-accordion-title">${section}</span>
+        <span class="section-accordion-count">${countLabel}</span>`;
+
+      const panel = el('div', 'section-accordion-panel');
+      panel.hidden = true;
+
+      const table = el('table', 'data-table gap-table section-accordion-table');
+      const thead = el('thead');
+      thead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`;
+      table.appendChild(thead);
+
+      const tbody = el('tbody');
+      sectionRows.forEach((row) => {
+        const tr = el('tr');
+        rowToCells(row).forEach((cellHtml) => {
+          const td = el('td');
+          td.innerHTML = cellHtml;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      const wrap = el('div', 'table-wrap');
+      wrap.appendChild(table);
+      panel.appendChild(wrap);
+
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        setSectionAccordionOpen(block, !expanded);
+      });
+
+      block.appendChild(toggle);
+      block.appendChild(panel);
+      root.appendChild(block);
+    });
+
+  return root;
 }
 
 function buildCollapsibleStoreBlock({ storeName, metaHtml = '', count, countLabel, contentNode, startExpanded = false }) {
@@ -917,31 +1015,21 @@ function renderGapAnalysis() {
     hasContent = true;
     storeBlockCount += 1;
 
-    const table = el('table', 'data-table gap-table');
-    table.innerHTML = `<thead><tr>
-      <th>SECTION</th><th>CHECKPOINT</th><th>PREVIOUS</th><th>LATEST</th><th>STATUS</th>
-    </tr></thead>`;
-    const tbody = el('tbody');
-
-    rows.forEach(r => {
-      const tr = el('tr');
-      tr.innerHTML = `
-        <td style="font-size:12px;color:var(--mid-grey)">${r.section}</td>
-        <td>${r.label}</td>
-        <td><strong style="color:${r.prevAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.prevAns}</strong></td>
-        <td><strong style="color:${r.lateAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.lateAns}</strong></td>
-        <td><span class="${r.statusCls}">${r.status}</span></td>`;
-      tbody.appendChild(tr);
+    const groupedTable = buildSectionGroupedTable(rows, {
+      headers: ['CHECKPOINT', 'PREVIOUS', 'LATEST', 'STATUS'],
+      rowToCells: (r) => [
+        r.label,
+        `<strong style="color:${r.prevAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.prevAns}</strong>`,
+        `<strong style="color:${r.lateAns === 'YES' ? 'var(--pass-green)' : 'var(--fail-red)'}">${r.lateAns}</strong>`,
+        `<span class="${r.statusCls}">${r.status}</span>`,
+      ],
     });
 
-    table.appendChild(tbody);
-    const wrap = el('div', 'table-wrap');
-    wrap.appendChild(table);
     container.appendChild(buildCollapsibleStoreBlock({
       storeName,
       count: rows.length,
       countLabel: `${rows.length} gap${rows.length !== 1 ? 's' : ''}`,
-      contentNode: wrap,
+      contentNode: groupedTable,
     }));
   });
 
@@ -1015,31 +1103,20 @@ function renderIssueCheckpoints() {
 
     rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
-    const table = el('table', 'data-table gap-table');
-    table.innerHTML = `<thead><tr>
-      <th>SECTION</th><th>CHECKPOINT</th><th>STATUS</th>
-    </tr></thead>`;
-    const tbody = el('tbody');
-
-    rows.forEach((r) => {
-      const answerCls = r.answer === 'NO' ? 'answer-no' : 'answer-skip';
-      const tr = el('tr');
-      tr.innerHTML = `
-        <td style="font-size:12px;color:var(--mid-grey)">${r.section}</td>
-        <td>${r.label}</td>
-        <td><strong class="${answerCls}">${r.answer}</strong></td>`;
-      tbody.appendChild(tr);
+    const groupedTable = buildSectionGroupedTable(rows, {
+      headers: ['CHECKPOINT', 'STATUS'],
+      rowToCells: (r) => {
+        const answerCls = r.answer === 'NO' ? 'answer-no' : 'answer-skip';
+        return [r.label, `<strong class="${answerCls}">${r.answer}</strong>`];
+      },
     });
 
-    table.appendChild(tbody);
-    const wrap = el('div', 'table-wrap');
-    wrap.appendChild(table);
     container.appendChild(buildCollapsibleStoreBlock({
       storeName,
       metaHtml: `<span class="gap-store-meta">· Latest visit ${visitLabel}</span>`,
       count: rows.length,
       countLabel: `${rows.length} issue${rows.length !== 1 ? 's' : ''}`,
-      contentNode: wrap,
+      contentNode: groupedTable,
     }));
   });
 

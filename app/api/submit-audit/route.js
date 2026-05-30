@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { unstable_noStore as noStore } from 'next/cache';
 import { addAudit } from '../../../lib/audit-store';
+import { notifyAuditSubmitted } from '../../../lib/audit-notification';
+import { SECTION_IDS } from '../../../lib/audit-sections';
+
+function sectionScoresFromResult(result) {
+  const arr = result.sectionScores;
+  if (arr && typeof arr === 'object' && !Array.isArray(arr)) return arr;
+  const scores = {};
+  SECTION_IDS.forEach((id, i) => {
+    scores[id] = Array.isArray(arr) ? (arr[i] ?? 0) : 0;
+  });
+  return scores;
+}
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -35,6 +47,23 @@ export async function POST(request) {
       visitDate,
       sections,
       photos,
+    });
+
+    const savedAudit = {
+      timestamp: result.timestamp,
+      storeName,
+      location: location || '',
+      auditorName,
+      auditeeName: auditeeName || '',
+      visitDate,
+      sectionScores: sectionScoresFromResult(result),
+      totalScore: result.totalScore,
+      checkpoints: sections,
+      photos: photos || [],
+    };
+
+    notifyAuditSubmitted(savedAudit).catch((err) => {
+      console.error('Audit email background error:', err);
     });
 
     return NextResponse.json({

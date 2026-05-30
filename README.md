@@ -60,6 +60,32 @@ Override with `QC_AUDIT_EMAIL_TO` and `QC_AUDIT_EMAIL_CC` (comma-separated).
 npm run build
 ```
 
+## Public production URL (share with your team)
+
+**Use this link for everyone** (no Vercel account required):
+
+**https://frido-qc-audit.vercel.app**
+
+Do **not** share long preview URLs like `frido-qc-audit-xxxxx-ritwiks-projects.vercel.app` — those often require Vercel login when **Deployment Protection** is enabled.
+
+### If features look old (no collapsible dashboard / no email)
+
+1. **Undo rollback** — Vercel → **Deployments** → find the rolled-back entry → **Undo Rollback**,  
+   **or** open the latest deployment (commit `Add section-level collapsible groups…`) → **⋯** → **Promote to Production**.
+2. Confirm **Production** domain `frido-qc-audit.vercel.app` points at that deployment (Domains tab on the deployment).
+3. Hard-refresh the browser (`Cmd+Shift+R`) or test in an incognito window.
+
+### Let anyone open the app (no Vercel login)
+
+Vercel → **Project** → **Settings** → **Deployment Protection**:
+
+- Set **Production** to **not** require Vercel Authentication (or “Standard Protection” only for previews).
+- Keep protection on **Preview** deployments if you want; only **Production** needs to be public.
+
+### Email on audit submit
+
+Production must have Graph + Supabase env vars under **Settings → Environment Variables** (Production). Redeploy after changing env vars.
+
 ## CI/CD
 
 GitHub Actions workflows included:

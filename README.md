@@ -49,8 +49,8 @@ Set in `.env.local` / Vercel:
 
 Default recipients:
 
-- **To:** `saiyed.a@myfrido.com`
-- **CC:** `yogesh.t@myfrido.com`, `mehak.g@myfrido.com`, `nishrit.p@myfrido.com`, `Siddhant.n@myfrido.com`
+- **To:** `yogesh.t@myfrido.com`, `mehak.g@myfrido.com`, `nishrit.p@myfrido.com`, `Siddhant.n@myfrido.com`, `Vaibhav.j@myfrido.com`, `Mayur.k@myfrido.com`, `arsh.a@myfrido.com`
+- **CC:** `saiyed.a@myfrido.com`
 
 Override with `QC_AUDIT_EMAIL_TO` and `QC_AUDIT_EMAIL_CC` (comma-separated).
 

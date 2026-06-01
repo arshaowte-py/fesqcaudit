@@ -330,13 +330,48 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.success-logo {
+  display: block;
+  width: min(220px, 72vw);
+  height: auto;
+  margin: 0 auto 16px;
+  border-radius: var(--radius-sm);
+}
+
 .success-card h2 { font-size: 20px; color: var(--near-black); margin: 16px 0 12px; }
-.success-stars { font-size: 32px; }
+.success-stars { font-size: 32px; margin-bottom: 4px; }
 .success-details {
   font-size: 14px; color: var(--mid-grey); line-height: 1.8;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .success-details strong { color: var(--near-black); }
+
+.success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-success-cancel {
+  padding: 12px 28px;
+  background: var(--white);
+  color: var(--near-black);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  border: 2px solid var(--border-grey);
+  border-radius: 40px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-success-cancel:hover {
+  background: var(--light-grey);
+  border-color: var(--mid-grey);
+}
+
 .btn-new {
   padding: 12px 32px; background: var(--brand-gold);
   color: var(--near-black); font-family: var(--font);

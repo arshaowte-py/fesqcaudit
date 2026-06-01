@@ -25,10 +25,10 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/assets/app.css?v=10">
-  <link rel="stylesheet" href="/assets/audit-form.css?v=10">
-  <link rel="stylesheet" href="/assets/dashboard.css?v=10">
-  <link rel="stylesheet" href="/assets/responses.css?v=10">
+  <link rel="stylesheet" href="/assets/app.css?v=11">
+  <link rel="stylesheet" href="/assets/audit-form.css?v=11">
+  <link rel="stylesheet" href="/assets/dashboard.css?v=11">
+  <link rel="stylesheet" href="/assets/responses.css?v=11">
 </head>
 
 <body>
@@ -297,10 +297,20 @@
   <!-- ═══ SUCCESS OVERLAY ═══ -->
   <div class="overlay" id="successOverlay">
     <div class="overlay-card success-card">
+      <img
+        src="/assets/audit-success-logo.png"
+        alt="Frido Store Audit — QC Visit Report"
+        class="success-logo"
+        width="220"
+        height="220"
+      >
       <div class="success-stars" id="successStars"></div>
       <h2>Audit Submitted Successfully</h2>
       <div class="success-details" id="successDetails"></div>
-      <button class="btn-new" id="btnNewAudit">Start New Audit</button>
+      <div class="success-actions">
+        <button type="button" class="btn-success-cancel" id="btnCancelSuccess">Cancel</button>
+        <button type="button" class="btn-new" id="btnNewAudit">Start New Audit</button>
+      </div>
     </div>
   </div>
 
@@ -308,16 +318,16 @@
   <div class="toast" id="toast"></div>
 
   <!-- ═══ SCRIPTS ═══ -->
-  <script src="/assets/app.js?v=10"></script>
-  <script src="/assets/audit-form.js?v=10"></script>
-  <script src="/assets/dashboard.js?v=10"></script>
-  <script src="/assets/responses.js?v=10"></script>
+  <script src="/assets/app.js?v=11"></script>
+  <script src="/assets/audit-form.js?v=11"></script>
+  <script src="/assets/dashboard.js?v=11"></script>
+  <script src="/assets/responses.js?v=11"></script>
 
   <!-- Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=10')
+        navigator.serviceWorker.register('/sw.js?v=11')
           .then(reg => console.log('SW registered:', reg.scope))
           .catch(err => console.error('SW registration failed:', err));
       });

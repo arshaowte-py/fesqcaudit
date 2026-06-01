@@ -136,6 +136,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnSubmit').addEventListener('click', handleSubmit);
   document.getElementById('btnNewAudit').addEventListener('click', resetForm);
+  document.getElementById('btnCancelSuccess').addEventListener('click', closeSuccessOverlay);
+
+  const successOverlay = document.getElementById('successOverlay');
+  successOverlay.addEventListener('click', (e) => {
+    if (e.target === successOverlay) closeSuccessOverlay();
+  });
 });
 
 /* ─── Build Sections ─── */
@@ -573,6 +579,10 @@ function showSuccess(total, sectionScores, payload) {
     <div><strong>Total Score:</strong> ${total} / 70</div>`;
 
   showOverlay('successOverlay');
+}
+
+function closeSuccessOverlay() {
+  hideOverlay('successOverlay');
 }
 
 /* ─── Reset ─── */

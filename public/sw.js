@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frido-qc-cache-v10';
+const CACHE_NAME = 'frido-qc-cache-v11';
 const ASSETS = [
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
   '/assets/dashboard.js',
   '/assets/responses.css',
   '/assets/responses.js',
+  '/assets/audit-success-logo.png',
   '/assets/frido-logo.svg',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,700&display=swap'
 ];

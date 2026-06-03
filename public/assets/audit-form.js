@@ -128,6 +128,8 @@ const CHECKPOINTS = {
 /* ─── State ─── */
 const state = {};          // { S1: { Q1: { answer, remark, photos[] } } }
 const MAX_PHOTOS_PER_CHECKPOINT = 5;
+/** Sections that include product name + corrective action fields */
+const SECTIONS_WITH_PRODUCT_FIELDS = new Set(['S4', 'S7']);
 
 /* ─── Init ─── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -193,11 +195,27 @@ function buildSections() {
       }
 
       const qKey = `Q${qIdx + 1}`;
-      state[sId][qKey] = { answer: '', spec: item.spec, remark: '', photos: [] };
+      const hasProductFields = SECTIONS_WITH_PRODUCT_FIELDS.has(sId);
+      state[sId][qKey] = {
+        answer: '',
+        spec: item.spec,
+        remark: '',
+        photos: [],
+        ...(hasProductFields ? { productName: '', correctiveAction: '' } : {}),
+      };
 
       const row = document.createElement('div');
       row.className = 'cp-row';
       row.id = `row-${sId}-${qKey}`;
+
+      const correctionFieldsHtml = hasProductFields
+        ? `<div class="cp-correction-fields">
+            <input type="text" class="cp-product-input" id="product-${sId}-${qKey}"
+                   placeholder="Product name" data-s="${sId}" data-q="${qKey}">
+            <input type="text" class="cp-corrective-input" id="corrective-${sId}-${qKey}"
+                   placeholder="Type of corrective actions suggested (eg. replace)" data-s="${sId}" data-q="${qKey}">
+          </div>`
+        : '';
 
       row.innerHTML = `
         <div class="cp-num">${qIdx + 1}</div>
@@ -211,6 +229,7 @@ function buildSections() {
           <button type="button" class="toggle-btn no"  data-s="${sId}" data-q="${qKey}" data-v="NO">NO</button>
           <button type="button" class="toggle-btn skip" data-s="${sId}" data-q="${qKey}" data-v="SKIP">SKIP</button>
         </div>
+        ${correctionFieldsHtml}
         <div class="cp-extras">
           <input type="text" class="cp-remark" id="remark-${sId}-${qKey}"
                  placeholder="Add remarks (optional)" data-s="${sId}" data-q="${qKey}">
@@ -243,6 +262,17 @@ function buildSections() {
         specInput.classList.remove('error');
         row.classList.remove('error');
       });
+
+      if (hasProductFields) {
+        const productInput = row.querySelector('.cp-product-input');
+        const correctiveInput = row.querySelector('.cp-corrective-input');
+        productInput.addEventListener('input', () => {
+          state[sId][qKey].productName = productInput.value;
+        });
+        correctiveInput.addEventListener('input', () => {
+          state[sId][qKey].correctiveAction = correctiveInput.value;
+        });
+      }
 
       // Remark event
       const remarkInput = row.querySelector('.cp-remark');
@@ -478,11 +508,16 @@ async function handleSubmit() {
     for (let i = 0; i < sec.items.length; i++) {
       const qKey = `Q${i + 1}`;
       const cp = state[sId][qKey];
-      sections[sId][qKey] = {
+      const entry = {
         answer: cp.answer,
         spec: cp.spec,
         remark: cp.remark,
       };
+      if (SECTIONS_WITH_PRODUCT_FIELDS.has(sId)) {
+        entry.productName = cp.productName || '';
+        entry.correctiveAction = cp.correctiveAction || '';
+      }
+      sections[sId][qKey] = entry;
       if (cp.photos && cp.photos.length) {
         cp.photos.forEach((photoData) => {
           photos.push({
@@ -595,18 +630,35 @@ function resetForm() {
   document.getElementById('visitDate').value = '';
 
   for (const sId of Object.keys(state)) {
-    for (const qKey of Object.keys(state[sId])) {
-      state[sId][qKey] = { answer: '', spec: '', remark: '', photos: [] };
+    const sec = CHECKPOINTS[sId];
+    Object.keys(state[sId]).forEach((qKey, idx) => {
+      const hasProductFields = SECTIONS_WITH_PRODUCT_FIELDS.has(sId);
+      const defaultSpec = sec?.items[idx]?.spec || '';
+      state[sId][qKey] = {
+        answer: '',
+        spec: defaultSpec,
+        remark: '',
+        photos: [],
+        ...(hasProductFields ? { productName: '', correctiveAction: '' } : {}),
+      };
       const row = document.getElementById(`row-${sId}-${qKey}`);
+      if (!row) return;
       row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('selected'));
-      row.querySelector('.cp-spec-input').value = '';
-      row.querySelector('.cp-spec-input').classList.remove('error');
+      const specEl = row.querySelector('.cp-spec-input');
+      if (specEl) {
+        specEl.value = defaultSpec;
+        specEl.classList.remove('error');
+      }
+      const productEl = row.querySelector('.cp-product-input');
+      const correctiveEl = row.querySelector('.cp-corrective-input');
+      if (productEl) productEl.value = '';
+      if (correctiveEl) correctiveEl.value = '';
       row.querySelector('.cp-remark').value = '';
       row.classList.remove('error');
       const gallery = row.querySelector('.cp-photo-gallery');
       if (gallery) gallery.innerHTML = '';
       updatePhotoBtn(row.querySelector('.cp-photo-btn'), 0);
-    }
+    });
   }
 
   recalcScore();

@@ -186,6 +186,40 @@
   background: #FFF5F5;
 }
 
+/* Product name + corrective action (S4, S7 only) */
+.cp-correction-fields {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.cp-product-input,
+.cp-corrective-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border-grey);
+  border-radius: var(--radius-input);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--near-black);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cp-product-input:focus,
+.cp-corrective-input:focus {
+  border-color: var(--brand-gold);
+}
+
+.cp-product-input::placeholder,
+.cp-corrective-input::placeholder {
+  color: var(--mid-grey);
+  font-size: 12px;
+}
+
 /* Answer toggles */
 .cp-toggles { display: flex; gap: 4px; flex-shrink: 0; }
 .toggle-btn {
@@ -418,6 +452,11 @@
     border-radius: var(--radius-btn);
   }
   
+  .cp-correction-fields {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
   .cp-extras {
     grid-column: 1 / -1;
     width: 100%;

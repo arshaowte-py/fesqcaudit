@@ -12,6 +12,7 @@ create table if not exists public.audits (
   visit_date text not null,
   section_scores jsonb not null default '{}'::jsonb,
   total_score integer not null default 0,
+  -- checkpoints: per Qn — answer, spec, remark; S4/S7 also productName, correctiveAction
   checkpoints jsonb not null default '{}'::jsonb,
   photos jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()

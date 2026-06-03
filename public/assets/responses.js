@@ -217,10 +217,14 @@ function renderSectionDetail(sectionKey, audit) {
   const sectionScore = audit.sectionScores?.[sectionKey] ?? '—';
   const checkpoints = audit.checkpoints?.[sectionKey] || {};
 
+  const showProductFields = sectionKey === 'S4' || sectionKey === 'S7';
+
   let html = `<div class="detail-section-title">${sectionKey} — ${escapeHTML(meta.name)} (${sectionScore}/${meta.count})</div>`;
   html += `<table class="detail-table">
     <thead><tr>
-      <th>#</th><th>Checkpoint</th><th>Specification</th><th>Answer</th><th>Remark</th>
+      <th>#</th><th>Checkpoint</th><th>Specification</th><th>Answer</th>
+      ${showProductFields ? '<th>Product name</th><th>Corrective action</th>' : ''}
+      <th>Remark</th>
     </tr></thead><tbody>`;
 
   for (let q = 1; q <= meta.count; q++) {
@@ -232,6 +236,7 @@ function renderSectionDetail(sectionKey, audit) {
       <td>${escapeHTML(qKey)}</td>
       <td>${escapeHTML(cp.spec || '—')}</td>
       <td class="${answerCls}">${escapeHTML(cp.answer || '—')}</td>
+      ${showProductFields ? `<td>${escapeHTML(cp.productName || '—')}</td><td>${escapeHTML(cp.correctiveAction || '—')}</td>` : ''}
       <td>${escapeHTML(cp.remark || '—')}</td>
     </tr>`;
   }

@@ -587,11 +587,16 @@ async function handleSubmit() {
       }
       showSuccess(data.totalScore, data.sectionScores, payload);
     } else {
-      showToast('Submission failed: ' + (data.error || 'Unknown error'));
+      const msg = data.error || 'Unknown error';
+      showToast(
+        msg.includes('Cannot reach Supabase')
+          ? msg
+          : 'Submission failed: ' + msg
+      );
     }
   } catch (err) {
     hideOverlay('loadingOverlay');
-    showToast('Network error — please try again');
+    showToast('Could not reach the server. Run npm run dev and open http://localhost:3000/index.html');
   }
 }
 

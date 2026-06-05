@@ -16,12 +16,25 @@ function sectionScoresFromResult(result) {
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 60;
 
 export async function POST(request) {
   noStore();
 
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Request too large or invalid. Remove some photos and try again (max ~4 MB total).',
+        },
+        { status: 413 }
+      );
+    }
     const {
       storeName,
       location,

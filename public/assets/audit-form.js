@@ -128,6 +128,8 @@ const CHECKPOINTS = {
 /* ─── State ─── */
 const state = {};          // { S1: { Q1: { answer, remark, photos[] } } }
 const MAX_PHOTOS_PER_CHECKPOINT = 5;
+/** Vercel serverless request body limit is ~4.5 MB */
+const MAX_SUBMIT_BYTES = 4 * 1024 * 1024;
 /** Sections that include product name + corrective action fields */
 const SECTIONS_WITH_PRODUCT_FIELDS = new Set(['S4', 'S7']);
 
@@ -310,7 +312,7 @@ function buildSections() {
         }
 
         Promise.all(toProcess.map(file => new Promise(resolve => {
-          compressImage(file, 200 * 1024, resolve);
+          compressImage(file, 100 * 1024, resolve);
         }))).then(results => {
           state[sId][qKey].photos.push(...results);
           renderPhotoThumbs(sId, qKey, row);
@@ -540,14 +542,40 @@ async function handleSubmit() {
     photos,
   };
 
+  const body = JSON.stringify(payload);
+  if (body.length > MAX_SUBMIT_BYTES) {
+    hideOverlay('loadingOverlay');
+    const sizeMb = (body.length / (1024 * 1024)).toFixed(1);
+    showToast(
+      `Audit is too large (${sizeMb} MB), usually due to photos. Remove some photos and submit again.`
+    );
+    return;
+  }
+
   try {
     const res = await fetch('/api/submit-audit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body,
+      cache: 'no-store',
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      hideOverlay('loadingOverlay');
+      if (res.status === 413) {
+        showToast('Submission too large — remove some photos and try again.');
+      } else {
+        showToast(
+          `Server error (${res.status || 'unknown'}). Check your connection and retry in a moment.`
+        );
+      }
+      return;
+    }
+
     hideOverlay('loadingOverlay');
 
     if (data.success) {
@@ -596,7 +624,14 @@ async function handleSubmit() {
     }
   } catch (err) {
     hideOverlay('loadingOverlay');
-    showToast('Could not reach the server. Run npm run dev and open http://localhost:3000/index.html');
+    console.error('Submit audit network error:', err);
+    if (!navigator.onLine) {
+      showToast('You appear to be offline. Reconnect and try again.');
+      return;
+    }
+    showToast(
+      'Could not submit the audit. Check mobile signal or Wi‑Fi, then try again. If it keeps failing, hard-refresh the page and resubmit.'
+    );
   }
 }
 

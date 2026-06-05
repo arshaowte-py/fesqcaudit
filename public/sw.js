@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frido-qc-cache-v12';
+const CACHE_NAME = 'frido-qc-cache-v13';
 const ASSETS = [
   '/',
   '/index.html',

@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "app/api/submit-audit/route.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/get-audits/route.js": {
+      "maxDuration": 30
+    }
+  }
+}

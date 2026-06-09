@@ -25,10 +25,10 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/assets/app.css?v=13">
-  <link rel="stylesheet" href="/assets/audit-form.css?v=13">
-  <link rel="stylesheet" href="/assets/dashboard.css?v=13">
-  <link rel="stylesheet" href="/assets/responses.css?v=13">
+  <link rel="stylesheet" href="/assets/app.css?v=14">
+  <link rel="stylesheet" href="/assets/audit-form.css?v=14">
+  <link rel="stylesheet" href="/assets/dashboard.css?v=14">
+  <link rel="stylesheet" href="/assets/responses.css?v=14">
 </head>
 
 <body>
@@ -318,16 +318,16 @@
   <div class="toast" id="toast"></div>
 
   <!-- ═══ SCRIPTS ═══ -->
-  <script src="/assets/app.js?v=13"></script>
-  <script src="/assets/audit-form.js?v=13"></script>
-  <script src="/assets/dashboard.js?v=13"></script>
-  <script src="/assets/responses.js?v=13"></script>
+  <script src="/assets/app.js?v=14"></script>
+  <script src="/assets/audit-form.js?v=14"></script>
+  <script src="/assets/dashboard.js?v=14"></script>
+  <script src="/assets/responses.js?v=14"></script>
 
   <!-- Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=13')
+        navigator.serviceWorker.register('/sw.js?v=14')
           .then(reg => console.log('SW registered:', reg.scope))
           .catch(err => console.error('SW registration failed:', err));
       });

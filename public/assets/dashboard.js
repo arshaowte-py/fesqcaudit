@@ -49,9 +49,10 @@ let filteredAudits = [];
 
 /* ─── Grade helpers ─── */
 function getGrade(score) {
-  if (score === 70) return { label: 'Perfect', cls: 'grade-perfect' };
-  if (score >= 50) return { label: 'Good', cls: 'grade-good' };
-  if (score >= 30) return { label: 'Needs Work', cls: 'grade-needs-work' };
+  if (score == null) return { label: 'N/A', cls: 'grade-needs-work' };
+  if (score === 100) return { label: 'Perfect', cls: 'grade-perfect' };
+  if (score >= 70) return { label: 'Good', cls: 'grade-good' };
+  if (score >= 40) return { label: 'Needs Work', cls: 'grade-needs-work' };
   return { label: 'Critical', cls: 'grade-critical' };
 }
 
@@ -480,10 +481,10 @@ function applyFilters() {
 
     if (grade) {
       const s = a.totalScore;
-      if (grade === 'perfect' && s !== 70) return false;
-      if (grade === 'good' && (s < 50 || s > 69)) return false;
-      if (grade === 'needs_work' && (s < 30 || s > 49)) return false;
-      if (grade === 'critical' && s >= 30) return false;
+      if (grade === 'perfect' && s !== 100) return false;
+      if (grade === 'good' && (s < 70 || s > 99)) return false;
+      if (grade === 'needs_work' && (s < 40 || s > 69)) return false;
+      if (grade === 'critical' && s >= 40) return false;
     }
 
     return true;
@@ -590,11 +591,12 @@ function renderFilterNotice() {
 function renderKPIs() {
   const row = document.getElementById('kpiRow');
   const total = filteredAudits.length;
-  const avg = total ? (filteredAudits.reduce((s, a) => s + a.totalScore, 0) / total) : 0;
-  const perfect = filteredAudits.filter(a => a.totalScore === 70).length;
-  const critical = filteredAudits.filter(a => a.totalScore < 30).length;
+  const validScores = filteredAudits.map(a => a.totalScore).filter(s => s != null);
+  const avg = validScores.length ? validScores.reduce((s, n) => s + n, 0) / validScores.length : 0;
+  const perfect = filteredAudits.filter(a => a.totalScore === 100).length;
+  const critical = filteredAudits.filter(a => a.totalScore != null && a.totalScore < 40).length;
 
-  const avgCls = avg >= 50 ? 'green' : avg >= 30 ? 'orange' : 'red';
+  const avgCls = avg >= 70 ? 'green' : avg >= 40 ? 'orange' : 'red';
 
   row.innerHTML = `
     <div class="kpi-card">
@@ -604,8 +606,8 @@ function renderKPIs() {
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">${ICONS.spark}</div>
-      <div class="kpi-label">AVG SCORE /70</div>
-      <div class="kpi-value ${avgCls}">${avg.toFixed(1)}</div>
+      <div class="kpi-label">AVG SCORE</div>
+      <div class="kpi-value ${avgCls}">${avg.toFixed(1)}%</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">${ICONS.trophy}</div>
@@ -614,7 +616,7 @@ function renderKPIs() {
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">${ICONS.alert}</div>
-      <div class="kpi-label">CRITICAL &lt;30</div>
+      <div class="kpi-label">CRITICAL &lt;40%</div>
       <div class="kpi-value red">${critical}</div>
     </div>`;
 }
@@ -677,9 +679,9 @@ function renderGradeDistribution() {
 
   filteredAudits.forEach((a) => {
     const score = a.totalScore;
-    if (score === 70) buckets[0].count++;
-    else if (score >= 50) buckets[1].count++;
-    else if (score >= 30) buckets[2].count++;
+    if (score === 100) buckets[0].count++;
+    else if (score != null && score >= 70) buckets[1].count++;
+    else if (score != null && score >= 40) buckets[2].count++;
     else buckets[3].count++;
   });
 
@@ -759,7 +761,7 @@ function renderScoreTrend() {
       score: a.totalScore,
       label: formatTrendLabel(a.visitDate || a.timestamp),
       store: a.storeName,
-      tooltip: `${a.storeName} · ${formatTrendLabel(a.visitDate || a.timestamp)} · ${a.totalScore}/70`,
+      tooltip: `${a.storeName} · ${formatTrendLabel(a.visitDate || a.timestamp)} · ${a.totalScore != null ? a.totalScore + '%' : '—'}`,
     }));
 
   const width = 480;
@@ -767,11 +769,11 @@ function renderScoreTrend() {
   const pad = { top: 16, right: 16, bottom: 28, left: 36 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
-  const maxScore = 70;
+  const maxScore = 100;
 
   const coords = points.map((p, i) => {
     const x = pad.left + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
-    const y = pad.top + innerH - (p.score / maxScore) * innerH;
+    const y = pad.top + innerH - ((p.score ?? 0) / maxScore) * innerH;
     return { ...p, x, y };
   });
 
@@ -787,7 +789,7 @@ function renderScoreTrend() {
           <stop offset="100%" stop-color="rgba(255,210,0,0.02)"/>
         </linearGradient>
       </defs>
-      ${[0, 35, 70].map((tick) => {
+      ${[0, 50, 100].map((tick) => {
         const y = pad.top + innerH - (tick / maxScore) * innerH;
         return `
           <line class="chart-grid-line" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}"/>
@@ -842,9 +844,9 @@ function renderStoreAvg() {
     storeMap.map((s) => ({
       label: s.name,
       value: s.avg,
-      max: 70,
-      display: s.avg.toFixed(1),
-      tooltip: `${s.name} · avg ${s.avg.toFixed(1)}/70 · ${s.count} audit${s.count !== 1 ? 's' : ''}`,
+      max: 100,
+      display: s.avg.toFixed(1) + '%',
+      tooltip: `${s.name} · avg ${s.avg.toFixed(1)}% · ${s.count} audit${s.count !== 1 ? 's' : ''}`,
     })),
     {
       fillClass: 'chart-fill-gold',
@@ -868,7 +870,7 @@ function renderAuditsPerStore() {
       value: s.count,
       max: maxCount,
       display: String(s.count),
-      tooltip: `${s.name} · ${s.count} audit${s.count !== 1 ? 's' : ''} · avg ${s.avg.toFixed(1)}/70`,
+      tooltip: `${s.name} · ${s.count} audit${s.count !== 1 ? 's' : ''} · avg ${s.avg.toFixed(1)}%`,
     })),
     {
       fillClass: 'chart-fill-ink',
@@ -1147,14 +1149,14 @@ function renderFailureChart() {
 
   const failureItems = [];
   ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].forEach((sId) => {
-    let totalScore = 0;
-    let maxPossible = 0;
+    let scoreSum = 0;
+    let count = 0;
     filteredAudits.forEach(a => {
-      totalScore += a.sectionScores[sId] || 0;
-      maxPossible += SECTION_COUNTS[sId];
+      const s = a.sectionScores[sId];
+      if (s != null) { scoreSum += s; count++; }
     });
 
-    const pct = maxPossible > 0 ? Math.round((1 - (totalScore / maxPossible)) * 100) : 0;
+    const pct = count > 0 ? Math.round(100 - (scoreSum / count)) : 0;
 
     let badgeCls = 'low', badgeText = 'Healthy';
     if (pct >= 75) { badgeCls = 'high'; badgeText = 'Critical'; }
@@ -1218,6 +1220,9 @@ function buildStoreMap() {
   });
 
   return Object.values(map)
-    .map(s => ({ ...s, avg: s.scores.reduce((a, b) => a + b, 0) / s.count }))
+    .map(s => {
+      const valid = s.scores.filter(n => n != null);
+      return { ...s, avg: valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0 };
+    })
     .sort((a, b) => b.avg - a.avg);
 }

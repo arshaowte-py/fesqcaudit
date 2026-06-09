@@ -12,6 +12,89 @@ const SECTION_META = {
   S7: { name: 'Product Quality & Condition', count: 35 },
 };
 
+const CHECKPOINT_LABELS = {
+  S1: [
+    'Store floor is clean and free of dust',
+    'Display shelves cleaned and organized',
+    'AC / fans in working condition',
+    'No foul smell inside store',
+    'Dustbins available and emptied',
+  ],
+  S2: ['BOH 5S'],
+  S3: ['Check if any infra damaged'],
+  S4: [
+    'Display as per planogram',
+    'Bestsellers displayed in prime locations',
+    'New arrivals displayed properly',
+    'Seasonal products highlighted',
+    'Signage clean and correct',
+    'Mannequins properly dressed if available',
+    'Wedge stand availability',
+    'Maniquine for TNP',
+    'Maniquine for Barefoot and socks',
+    'Differentiators',
+    'Size chart',
+    'Footwear measurer',
+    'Stands Quality, stickering/pasting',
+    'Fire Extinguisher',
+    'Staff Uniform',
+    'Cash counter lock check, keys check',
+    'Cash register file',
+  ],
+  S5: [
+    'Stockroom organized by category and size',
+    'No leakage, moisture or dust',
+    'Proper racks and bins available',
+    'FIFO followed for inventory',
+    'Damaged stock segregated and logged',
+  ],
+  S6: [
+    'Billing system working smoothly',
+    'CCTV working',
+    'Emergency exits clear',
+    'Customer feedback register updated',
+    'Inward and Outward file check',
+    'Compliance check',
+  ],
+  S7: [
+    'Zipper issue',
+    'Stains on cover',
+    'Firmness of cusions',
+    'Hardness of cusions',
+    'Bubbles',
+    'Cuts/Torn',
+    'Lints',
+    'TNP velcro loose',
+    'No faded',
+    'Hinges check',
+    'Stains',
+    'Lints',
+    'All Functions Check',
+    'Portable desk loose',
+    'No faded',
+    'Dust on boxes',
+    'Box condition',
+    'Sticker position',
+    'Stain',
+    'Wear and tare',
+    'Glue marks',
+    'Covers for shoes available',
+    'Damages',
+    'All latest models availability',
+    'Double stickering/MRP',
+    'Packaging condition',
+    'Dust/Dirt',
+    'Machine check',
+    'Cleanliness',
+    'Wiring check',
+    'Machine cleanliness 2D 3D',
+    'No damaged / defective products on display',
+    'No faded stained or torn products',
+    'Packaging intact and clean',
+    'Returned items checked before keeping back',
+  ],
+};
+
 /* ── Helpers ── */
 
 function escapeHTML(str) {
@@ -22,20 +105,23 @@ function escapeHTML(str) {
 }
 
 function getScoreColor(score) {
-  if (score >= 50) return 'green';
-  if (score >= 30) return 'orange';
+  if (score == null) return 'orange';
+  if (score >= 70) return 'green';
+  if (score >= 40) return 'orange';
   return 'red';
 }
 
 function getGrade(score) {
-  if (score === 70) return { label: 'Perfect', cls: 'grade-perfect' };
-  if (score >= 50) return { label: 'Good', cls: 'grade-good' };
-  if (score >= 30) return { label: 'Needs Work', cls: 'grade-needs-work' };
+  if (score == null) return { label: 'N/A', cls: 'grade-needs-work' };
+  if (score === 100) return { label: 'Perfect', cls: 'grade-perfect' };
+  if (score >= 70) return { label: 'Good', cls: 'grade-good' };
+  if (score >= 40) return { label: 'Needs Work', cls: 'grade-needs-work' };
   return { label: 'Critical', cls: 'grade-critical' };
 }
 
-function getPillClass(score, max) {
-  if (score >= max) return 'full';
+function getPillClass(score) {
+  if (score == null) return 'zero';
+  if (score === 100) return 'full';
   if (score > 0) return 'partial';
   return 'zero';
 }
@@ -183,6 +269,41 @@ function getPhotoSrc(data) {
   return `data:image/jpeg;base64,${data}`;
 }
 
+function injectPhotosIntoCheckpoints(photos, container) {
+  if (!photos || photos.length === 0) return;
+
+  const photoMap = {};
+  photos.forEach((photo) => {
+    if (!photo.section || !photo.checkpoint) return;
+    const key = `${photo.section}||${photo.checkpoint}`;
+    if (!photoMap[key]) photoMap[key] = [];
+    photoMap[key].push(photo.data);
+  });
+
+  container.querySelectorAll('.cp-photos-cell').forEach((cell) => {
+    const sKey = cell.dataset.section;
+    const qKey = cell.dataset.qkey;
+    if (!sKey || !qKey) return;
+    const qIndex = parseInt(qKey.replace('Q', ''), 10) - 1;
+    const label = (CHECKPOINT_LABELS[sKey] || [])[qIndex];
+    if (!label) return;
+    const cellPhotos = photoMap[`${sKey}||${label}`] || [];
+    if (cellPhotos.length === 0) return;
+
+    let html = '<div class="cp-photo-thumbs">';
+    cellPhotos.forEach((data, idx) => {
+      const src = getPhotoSrc(data);
+      html += `<img src="${src}" class="cp-photo-thumb" alt="Photo ${idx + 1}" loading="lazy" />`;
+    });
+    html += '</div>';
+    cell.innerHTML = html;
+
+    cell.querySelectorAll('.cp-photo-thumb').forEach((img) => {
+      img.addEventListener('click', () => openLightbox(img.src));
+    });
+  });
+}
+
 function renderPhotoGallery(photos, container) {
   if (!photos || photos.length === 0) {
     container.innerHTML = '<div class="no-photos">📷 No photos attached to this audit</div>';
@@ -219,12 +340,13 @@ function renderSectionDetail(sectionKey, audit) {
 
   const showProductFields = sectionKey === 'S4' || sectionKey === 'S7';
 
-  let html = `<div class="detail-section-title">${sectionKey} — ${escapeHTML(meta.name)} (${sectionScore}/${meta.count})</div>`;
-  html += `<table class="detail-table">
+  const sectionDisplay = sectionScore != null ? `${sectionScore}%` : '—';
+  let html = `<div class="detail-section-title">${sectionKey} — ${escapeHTML(meta.name)} (${sectionDisplay})</div>`;
+  html += `<div class="detail-table-scroll"><table class="detail-table">
     <thead><tr>
       <th>#</th><th>Checkpoint</th><th>Specification</th><th>Answer</th>
       ${showProductFields ? '<th>Product name</th><th>Corrective action</th>' : ''}
-      <th>Remark</th>
+      <th>Remark</th><th>Photos</th>
     </tr></thead><tbody>`;
 
   for (let q = 1; q <= meta.count; q++) {
@@ -238,10 +360,11 @@ function renderSectionDetail(sectionKey, audit) {
       <td class="${answerCls}">${escapeHTML(cp.answer || '—')}</td>
       ${showProductFields ? `<td>${escapeHTML(cp.productName || '—')}</td><td>${escapeHTML(cp.correctiveAction || '—')}</td>` : ''}
       <td>${escapeHTML(cp.remark || '—')}</td>
+      <td class="cp-photos-cell" data-section="${sectionKey}" data-qkey="${qKey}"></td>
     </tr>`;
   }
 
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   return html;
 }
 
@@ -267,9 +390,6 @@ function renderResponseDetail(audit) {
     html += renderSectionDetail(sKey, audit);
   });
 
-  // Photo gallery placeholder
-  html += `<div class="photo-gallery-container"><div class="photos-loading">Loading photos…</div></div>`;
-
   return html;
 }
 
@@ -281,10 +401,10 @@ function renderCard(audit, index) {
 
   let pillsHTML = '';
   Object.keys(SECTION_META).forEach((sKey) => {
-    const s = Number(audit.sectionScores?.[sKey]) || 0;
-    const max = SECTION_META[sKey].count;
-    const pillCls = getPillClass(s, max);
-    pillsHTML += `<span class="section-pill ${pillCls}">${sKey}: ${s}/${max}</span>`;
+    const s = audit.sectionScores?.[sKey];
+    const pillCls = getPillClass(s);
+    const display = s != null ? `${s}%` : '—';
+    pillsHTML += `<span class="section-pill ${pillCls}">${sKey}: ${display}</span>`;
   });
 
   return `
@@ -308,7 +428,7 @@ function renderCard(audit, index) {
             data-store="${escapeHTML(audit.storeName)}"
           >Delete</button>
           <span class="grade-badge ${grade.cls}">${grade.label}</span>
-          <span class="response-score ${colorCls}">${score}/70</span>
+          <span class="response-score ${colorCls}">${score != null ? score + '%' : '—'}</span>
         </div>
       </div>
       <div class="response-sections-pills">${pillsHTML}</div>
@@ -348,14 +468,9 @@ async function toggleResponseCard(index) {
   detail.classList.add('open');
   card.classList.add('expanded');
 
-  const galleryContainer = detail.querySelector('.photo-gallery-container');
-  if (galleryContainer) {
-    const photos = (audit.photos || []).map((photo) => ({
-      section: photo.section,
-      checkpoint: photo.checkpoint,
-      data: photo.data,
-    }));
-    renderPhotoGallery(photos, galleryContainer);
+  if (!detail.dataset.photosLoaded) {
+    injectPhotosIntoCheckpoints(audit.photos || [], detail);
+    detail.dataset.photosLoaded = '1';
   }
 }
 

@@ -75,12 +75,15 @@ export async function POST(request) {
       photos: photos || [],
     };
 
-    notifyAuditSubmitted(savedAudit).catch((err) => {
-      console.error('Audit email background error:', err);
-    });
+    if (!result.duplicate) {
+      notifyAuditSubmitted(savedAudit).catch((err) => {
+        console.error('Audit email background error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,
+      duplicate: Boolean(result.duplicate),
       timestamp: result.timestamp,
       rowNumber: result.rowNumber,
       totalScore: result.totalScore,

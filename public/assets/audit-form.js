@@ -132,6 +132,19 @@ const MAX_PHOTOS_PER_CHECKPOINT = 5;
 const MAX_SUBMIT_BYTES = 4 * 1024 * 1024;
 /** Sections that include product name + corrective action fields */
 const SECTIONS_WITH_PRODUCT_FIELDS = new Set(['S4', 'S7']);
+let submitInFlight = false;
+
+function setSubmitBusy(busy) {
+  submitInFlight = busy;
+  const btn = document.getElementById('btnSubmit');
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
+function resetSubmitState() {
+  setSubmitBusy(false);
+}
 
 /* ─── Init ─── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -493,11 +506,14 @@ function validate() {
 
 /* ─── Submit ─── */
 async function handleSubmit() {
+  if (submitInFlight) return;
+
   if (!validate()) {
     showToast('Please complete all required fields');
     return;
   }
 
+  setSubmitBusy(true);
   showOverlay('loadingOverlay');
 
   // Build sections data
@@ -545,6 +561,7 @@ async function handleSubmit() {
   const body = JSON.stringify(payload);
   if (body.length > MAX_SUBMIT_BYTES) {
     hideOverlay('loadingOverlay');
+    setSubmitBusy(false);
     const sizeMb = (body.length / (1024 * 1024)).toFixed(1);
     showToast(
       `Audit is too large (${sizeMb} MB), usually due to photos. Remove some photos and submit again.`
@@ -566,6 +583,7 @@ async function handleSubmit() {
       data = raw ? JSON.parse(raw) : {};
     } catch {
       hideOverlay('loadingOverlay');
+      setSubmitBusy(false);
       if (res.status === 413) {
         showToast('Submission too large — remove some photos and try again.');
       } else {
@@ -614,8 +632,12 @@ async function handleSubmit() {
         }
       }
       showSuccess(data.totalScore, data.sectionScores, payload);
+      if (data.duplicate) {
+        showToast('This audit was already saved — no duplicate copy was created.');
+      }
     } else {
       const msg = data.error || 'Unknown error';
+      setSubmitBusy(false);
       showToast(
         msg.includes('Cannot reach Supabase')
           ? msg
@@ -624,6 +646,7 @@ async function handleSubmit() {
     }
   } catch (err) {
     hideOverlay('loadingOverlay');
+    setSubmitBusy(false);
     console.error('Submit audit network error:', err);
     if (!navigator.onLine) {
       showToast('You appear to be offline. Reconnect and try again.');
@@ -663,6 +686,7 @@ function closeSuccessOverlay() {
 /* ─── Reset ─── */
 function resetForm() {
   hideOverlay('successOverlay');
+  resetSubmitState();
   document.getElementById('storeName').value = '';
   document.getElementById('location').value = '';
   document.getElementById('auditorName').value = '';

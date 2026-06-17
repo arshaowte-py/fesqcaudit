@@ -332,8 +332,14 @@
   box-shadow: 0 6px 20px rgba(255,212,0,0.35);
   letter-spacing: 0.2px;
 }
-.btn-submit:hover { background: var(--deep-gold); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,212,0,0.45); }
-.btn-submit:active { transform: translateY(0); }
+.btn-submit:hover:not(:disabled) { background: var(--deep-gold); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,212,0,0.45); }
+.btn-submit:active:not(:disabled) { transform: translateY(0); }
+.btn-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 
 /* ─── Overlays ─── */
 .overlay {

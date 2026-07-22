@@ -42,6 +42,9 @@ const MASTER_STORES = [
   'DLF Mall Gurgaon Delhi',
   'Bhartiya Mall Bangalore',
   'Kompally Hyderabad',
+  'Vegas Mall Dwarka',
+  'Felix Plaza',
+  'Omaxe World Street',
 ];
 
 let allAudits = [];
@@ -434,7 +437,28 @@ function buildCardShell(id, icon, title, { collapsible = false, startExpanded = 
 /* ─── Store Filter Options ─── */
 function populateStoreFilter() {
   const select = document.getElementById('filterStore');
-  const stores = [...new Set(allAudits.map(a => a.storeName))].sort();
+  const defaultStores = [
+    'Phoenix Marketcity, Viman Nagar',
+    'Amanora Mall, Magarpatta',
+    'Amar Tech Park, Balewadi',
+    'Elpro Mall, PCMC',
+    'Westend Mall, Aundh Pune',
+    'Kopa Mall, Ghorpadi, KP',
+    'Mall of Asia, Bangalore',
+    'Lakeshore Mall, Y Junction',
+    'Sky City Mall, Borivali',
+    'Gachibowli, Hyderabad',
+    'Banjara Hills, Hyderabad',
+    'DLF Mall, Gurgaon, Delhi',
+    'Bhartiya Mall, Bangalore',
+    'Kompally, Hyderabad',
+    'Vegas Mall, Dwarka',
+    'Felix Plaza',
+    'Omaxe World Street',
+  ];
+  const auditStores = allAudits.map(a => a.storeName).filter(Boolean);
+  const stores = [...new Set([...defaultStores, ...auditStores])].sort((a, b) => a.localeCompare(b));
+  select.innerHTML = '<option value="">All Stores</option>';
   stores.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s;

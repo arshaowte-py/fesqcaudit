@@ -110,3 +110,4 @@ Required GitHub secrets for CD:
 - `public/assets/dashboard.js` — dashboard logic
 - `public/assets/responses.js` — response copies logic
 - `lib/audit-store.js` — storage abstraction (Supabase + file fallback)
+# fesqcaudit

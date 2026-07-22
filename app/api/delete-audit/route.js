@@ -15,7 +15,7 @@ export async function DELETE(request) {
 
     const result = await deleteAudit({ timestamp, storeName });
 
-    notifyAuditDeleted({ storeName, auditorName, auditeeName, visitDate, timestamp }).catch((err) => {
+    await notifyAuditDeleted({ storeName, auditorName, auditeeName, visitDate, timestamp }).catch((err) => {
       console.error('Delete notification background error:', err);
     });
 

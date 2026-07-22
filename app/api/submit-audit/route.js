@@ -76,7 +76,7 @@ export async function POST(request) {
     };
 
     if (!result.duplicate) {
-      notifyAuditSubmitted(savedAudit).catch((err) => {
+      await notifyAuditSubmitted(savedAudit).catch((err) => {
         console.error('Audit email background error:', err);
       });
     }

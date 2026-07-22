@@ -634,8 +634,27 @@ window.initResponses = function initResponses() {
 };
 
 function populateResponsesStoreFilter(select, audits) {
-  const stores = [...new Set(audits.map((a) => a.storeName).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+  const defaultStores = [
+    'Phoenix Marketcity, Viman Nagar',
+    'Amanora Mall, Magarpatta',
+    'Amar Tech Park, Balewadi',
+    'Elpro Mall, PCMC',
+    'Westend Mall, Aundh Pune',
+    'Kopa Mall, Ghorpadi, KP',
+    'Mall of Asia, Bangalore',
+    'Lakeshore Mall, Y Junction',
+    'Sky City Mall, Borivali',
+    'Gachibowli, Hyderabad',
+    'Banjara Hills, Hyderabad',
+    'DLF Mall, Gurgaon, Delhi',
+    'Bhartiya Mall, Bangalore',
+    'Kompally, Hyderabad',
+    'Vegas Mall, Dwarka',
+    'Felix Plaza',
+    'Omaxe World Street',
+  ];
+  const auditStores = audits.map((a) => a.storeName).filter(Boolean);
+  const stores = [...new Set([...defaultStores, ...auditStores])].sort((a, b) => a.localeCompare(b));
 
   select.innerHTML = '<option value="">All Stores</option>';
   stores.forEach((store) => {

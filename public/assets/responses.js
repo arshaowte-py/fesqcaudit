@@ -585,11 +585,21 @@ window.initResponses = function initResponses() {
     });
 
     if (filtered.length === 0) {
-      listEl.innerHTML = `
-        <div class="responses-empty">
-          <div class="responses-empty-icon">📋</div>
-          <div>No audit responses found</div>
-        </div>`;
+      const loadError = window.fridoData && window.fridoData.loadError;
+      if (loadError && audits.length === 0) {
+        listEl.innerHTML = `
+          <div class="responses-empty">
+            <div class="responses-empty-icon">⚠️</div>
+            <div>Couldn't load audit responses from the server.</div>
+            <div class="responses-empty-detail">${escapeHTML(String(loadError))}</div>
+          </div>`;
+      } else {
+        listEl.innerHTML = `
+          <div class="responses-empty">
+            <div class="responses-empty-icon">📋</div>
+            <div>No audit responses found</div>
+          </div>`;
+      }
       countEl.textContent = '0 results';
       return;
     }

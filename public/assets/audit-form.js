@@ -66,6 +66,7 @@ const CHECKPOINTS = {
       { label: 'Emergency exits clear', spec: 'Emergency exits should remain accessible without blockage' },
       { label: 'Customer feedback register updated', spec: 'Feedback register should be available and updated' },
       { label: 'Inward and Outward file check', spec: 'Inward and outward records should be updated and maintained' },
+      { label: 'Compliance check', spec: 'Statutory and company compliance requirements should be met' },
     ]
   },
   S7: {

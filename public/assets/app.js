@@ -167,7 +167,8 @@
   window.fridoData = {
     audits: [],
     photos: [],
-    loaded: false
+    loaded: false,
+    loadError: null
   };
 
   const LOCAL_CACHE_KEY = 'frido:audits:local-cache:v1';
@@ -258,22 +259,38 @@
     const res = await fetch('/api/get-audits', { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    // The API returns a bare array on success. Anything else (e.g. a
+    // { success:false, error } object from a 200-wrapped failure) means the
+    // server could not load audits — surface it instead of silently showing
+    // an empty dashboard.
+    if (!Array.isArray(data)) {
+      const reason = (data && (data.error || data.reason)) || 'Unexpected response from server';
+      throw new Error(reason);
+    }
+    return data;
   }
 
   async function loadSharedData() {
     let serverAudits = [];
+    let loadError = null;
+    let serverReached = false;
     try {
       serverAudits = await fetchAudits();
+      serverReached = true;
     } catch (err) {
       console.error('Audit fetch failed:', err);
+      loadError = err && err.message ? err.message : String(err);
     }
 
     const merged = mergeWithLocalCache(serverAudits);
-    reconcileLocalCacheWith(serverAudits);
+    // Only reconcile (prune) the local cache against the server when we
+    // actually reached the server — otherwise a transient failure would drop
+    // locally-cached submissions the server still has.
+    if (serverReached) reconcileLocalCacheWith(serverAudits);
 
     window.fridoData.audits = merged;
     window.fridoData.loaded = true;
+    window.fridoData.loadError = loadError;
     return merged;
   }
 

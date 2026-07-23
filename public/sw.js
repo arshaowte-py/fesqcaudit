@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frido-qc-cache-v16';
+const CACHE_NAME = 'frido-qc-cache-v17';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,12 +15,21 @@ const ASSETS = [
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,700&display=swap'
 ];
 
-// Install Event — Cache assets
+// Install Event — Cache assets.
+// Cache each asset independently so one unreachable resource (e.g. the
+// cross-origin font stylesheet) can't reject the whole install and leave the
+// updated service worker stuck without activating.
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(
+        ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn('SW: failed to precache', asset, err);
+          })
+        )
+      )
+    ).then(() => self.skipWaiting())
   );
 });
 

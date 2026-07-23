@@ -698,6 +698,18 @@
   margin-bottom: 12px;
 }
 
+.responses-empty-detail {
+  margin: 10px auto 0;
+  max-width: 480px;
+  font-size: 12.5px;
+  color: #F43F5E;
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  word-break: break-word;
+}
+
 /* Result Count */
 .responses-count {
   font-size: 12px;

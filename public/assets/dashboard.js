@@ -265,13 +265,26 @@ window.initDashboard = function initDashboard() {
   root.appendChild(titleRow);
 
   if (!allAudits.length) {
+    const loadError = window.fridoData && window.fridoData.loadError;
     const empty = el('div', 'empty-state');
-    empty.innerHTML = `
-      <div class="empty-icon">${ICONS.list}</div>
-      <h3>No audits yet</h3>
-      <p>Submit your first store audit to populate the analytics.</p>
-      <button class="btn-primary" onclick="switchView('audit-form')">Start First Audit &rarr;</button>
-    `;
+    if (loadError) {
+      // Data could not be loaded from the server — say so clearly instead of
+      // implying there are simply no audits.
+      empty.innerHTML = `
+        <div class="empty-icon">${ICONS.alert}</div>
+        <h3>Couldn't load audit data</h3>
+        <p>The dashboard reached the server but the audit list failed to load, so responses can't be shown.</p>
+        <p class="empty-error-detail">${escapeAttr(String(loadError))}</p>
+        <button class="btn-primary" onclick="reloadAndRefreshDashboard()">Retry &#x21bb;</button>
+      `;
+    } else {
+      empty.innerHTML = `
+        <div class="empty-icon">${ICONS.list}</div>
+        <h3>No audits yet</h3>
+        <p>Submit your first store audit to populate the analytics.</p>
+        <button class="btn-primary" onclick="switchView('audit-form')">Start First Audit &rarr;</button>
+      `;
+    }
     root.appendChild(empty);
     return;
   }
@@ -350,6 +363,18 @@ window.initDashboard = function initDashboard() {
     group.classList.add('section-group--visible');
     group.style.transitionDelay = `${index * 80}ms`;
   });
+};
+
+/* ─── Reload data from server, then re-render the dashboard ─── */
+window.reloadAndRefreshDashboard = async function reloadAndRefreshDashboard() {
+  if (typeof window.reloadAuditData === 'function') {
+    try {
+      await window.reloadAuditData();
+    } catch (err) {
+      console.error('Dashboard reload failed:', err);
+    }
+  }
+  window.initDashboard();
 };
 
 /* ─── Filter HTML ─── */
@@ -1176,7 +1201,7 @@ function renderFailureChart() {
     let scoreSum = 0;
     let count = 0;
     filteredAudits.forEach(a => {
-      const s = a.sectionScores[sId];
+      const s = a.sectionScores ? a.sectionScores[sId] : null;
       if (s != null) { scoreSum += s; count++; }
     });
 

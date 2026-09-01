@@ -1,7 +1,5 @@
-const CACHE_NAME = 'frido-qc-cache-v16';
+const CACHE_NAME = 'frido-qc-cache-v17';
 const ASSETS = [
-  '/',
-  '/index.html',
   '/assets/app.css',
   '/assets/app.js',
   '/assets/audit-form.css',
@@ -41,8 +39,16 @@ self.addEventListener('activate', (e) => {
 
 // Fetch Event — Network first with cache fallback
 self.addEventListener('fetch', (e) => {
-  // Ignore API requests
+  // Never touch API requests, and never cache the app shell.
+  //
+  // The shell is auth-gated and served per-session by the `server` function.
+  // Caching a navigation response would let one signed-in user's shell be
+  // replayed to whoever uses the device next, and would cache the /login
+  // redirect issued to signed-out users. Only immutable /assets/ are cached.
   if (e.request.url.includes('/api/')) {
+    return;
+  }
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
     return;
   }
 

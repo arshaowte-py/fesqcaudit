@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireSession } from '../../../lib/auth-guard';
 import { unstable_noStore as noStore } from 'next/cache';
 import { addAudit } from '../../../lib/audit-store';
 import { notifyAuditSubmitted } from '../../../lib/audit-notification';
@@ -20,6 +21,9 @@ export const maxDuration = 60;
 
 export async function POST(request) {
   noStore();
+
+  const { response: authError } = await requireSession(request);
+  if (authError) return authError;
 
   try {
     let body;

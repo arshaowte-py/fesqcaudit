@@ -2,14 +2,23 @@
   "name": "frido-store-audit",
   "version": "1.0.0",
   "private": true,
+  "main": "server.js",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test --no-warnings \"test/*.test.mjs\"",
+    "deploy": "firebase --project \"$(node scripts/firebase-project.mjs)\" deploy --only hosting,functions",
+    "deploy:rules": "firebase --project \"$(node scripts/firebase-project.mjs)\" deploy --only firestore:rules,firestore:indexes,storage",
+    "seed:user": "node scripts/seed-user.mjs",
+    "logs": "firebase --project \"$(node scripts/firebase-project.mjs)\" functions:log --only server"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
-    "googleapis": "^134.0.0",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.1.1",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

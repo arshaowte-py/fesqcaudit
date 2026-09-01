@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "audits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "storeName", "order": "ASCENDING" },
+        { "fieldPath": "auditorName", "order": "ASCENDING" },
+        { "fieldPath": "visitDate", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

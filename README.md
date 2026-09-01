@@ -1,113 +1,124 @@
-# Frido Store Audit — QC Visit Report
+# Frido Store Audit — QC Portal
 
-Unified Frido QC portal with:
-- Audit form
-- Dashboard analytics
-- Response copies with photos
+Next.js app on Firebase, in `asia-south1` (Mumbai) so compute, database and
+photo storage all stay in India.
 
-All views are served from `public/index.html`.
+## Architecture
 
-## Storage
+| Piece | What runs there |
+|---|---|
+| **Firebase Hosting** | Static assets from `public/` (CDN, `immutable`) |
+| **`server` (gen-2 Cloud Function)** | The entire Next.js app. Hosting rewrites `**` to it |
+| **Firestore** | Audits, users, sessions, OTP requests, throttle counters |
+| **Cloud Storage** | Audit photos (`<project>-audit-photos`) |
+| **Secret Manager** | OTPless credentials |
 
-The app supports two storage modes:
+Sign-in is a 6-digit code emailed via OTPless. There are no passwords.
 
-1. **Supabase Postgres (recommended for production)**
-   - Uses `@supabase/supabase-js` with the service role key (server-only)
-   - Run `supabase/schema.sql` once in the Supabase SQL Editor
-2. **Local file fallback (development)**
-   - Uses `data/audits.json` automatically when Supabase env vars are not set
-
-## Local Development
+## Commands
 
 ```bash
-npm install
-npm run dev
+npm run dev            # local dev server
+npm test               # auth rules + route-guard coverage
+npm run build          # production build
+npm run deploy         # hosting + functions
+npm run deploy:rules   # Firestore rules + indexes
+npm run logs           # tail the server function
 ```
 
-Open: `http://localhost:3000/index.html`  
-(or the next available port if 3000 is in use)
+## The project id is never hardcoded
 
-## Environment Variables
+Several Firebase projects live under `~/work`, and the Firebase CLI resolves
+its target from a machine-wide directory→project map in
+`~/.config/configstore/firebase-tools.json` where **a parent-directory entry
+beats this repo's `.firebaserc`**. On this machine `~/work` maps to a different
+project, so a bare `firebase deploy` from here targets the wrong one.
 
-Create `.env.local` from `.env.example`.
+Every script therefore passes the target explicitly:
 
-### For production on Vercel (Supabase)
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SERVICE_SECRET_ROLE_KEY`)
+```json
+"deploy": "firebase --project \"$(node scripts/firebase-project.mjs)\" deploy --only hosting,functions"
+```
 
-If these are missing, local file storage is used.
+`scripts/firebase-project.mjs` reads `.firebaserc` and prints the id.
+`.firebaserc` is the **only** file that contains it — not `.env.example`, not
+any template. At runtime the function derives the bucket name from the project
+id the environment reports.
 
-### Audit notification email (Microsoft Graph)
+## Accounts
 
-After each audit is saved, the app can email a **full response copy** plus a **NO & SKIP** summary to the QC distribution list.
-
-Set in `.env.local` / Vercel:
-
-- `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` — from the **Frido Invite** app registration
-- `GRAPH_SENDER_UPN` — sending mailbox (e.g. `yourstruly@myfrido.com`)
-- Azure: Microsoft Graph **Application** permission `Mail.Send` with **admin consent**
-
-Default recipients:
-
-- **To:** `yogesh.t@myfrido.com`, `mehak.g@myfrido.com`, `nishrit.p@myfrido.com`, `Siddhant.n@myfrido.com`, `Vaibhav.j@myfrido.com`, `Mayur.k@myfrido.com`, `arsh.a@myfrido.com`
-- **CC:** `saiyed.a@myfrido.com`
-
-Override with `QC_AUDIT_EMAIL_TO` and `QC_AUDIT_EMAIL_CC` (comma-separated).
-
-## Build
+Requesting a code can never create an account: the sign-in path only ever reads
+the `users` collection. Accounts are made out of band.
 
 ```bash
-npm run build
+npm run seed:user -- someone@myfrido.com              # create
+npm run seed:user -- someone@myfrido.com --can-delete # allow deleting audits
+npm run seed:user -- someone@myfrido.com --disable    # revoke access
+npm run seed:user -- --list
 ```
 
-## Public production URL (share with your team)
+Sign-in requires **both** an `@myfrido.com` address and a `users` document.
 
-**Use this link for everyone** (no Vercel account required):
+## Auth design notes
 
-**https://frido-qc-audit.vercel.app**
+- **Cookie must be named `__session`.** Firebase Hosting strips every other
+  cookie, and this is not configurable. Any other name works locally and
+  against Cloud Run directly, then fails only through Hosting.
+- Sessions store the **SHA-256 of the token** as the document id; the token
+  itself is never persisted. `HttpOnly`, `Secure`, `SameSite=Strict`, 12h.
+- An unknown address gets a byte-identical response to a real one, padded to
+  the same duration, or the endpoint becomes a staff directory.
+- Only the OTPless `requestId` is stored, keyed by email as the **document
+  id**, which makes "one live code per person" a property of the database.
+  The code itself is never stored. 5 attempts, incremented transactionally.
+- Throttling lives in Firestore, not memory — the function scales to many
+  instances and a per-instance counter would cap nothing.
+- Missing OTPless credentials **fail closed**. The dev console-code fallback
+  refuses to run under `NODE_ENV=production` or on Cloud Functions, in both
+  directions: it can neither issue nor redeem a `dev:` code there.
+- Firestore rules **deny everything**. All access is server-side through the
+  Admin SDK, which bypasses rules.
+- The photo bucket has uniform bucket-level access and public access
+  prevention enforced, with no `allUsers` binding. Clients never touch it;
+  bytes are proxied through `/api/get-photos`.
 
-Do **not** share long preview URLs like `frido-qc-audit-xxxxx-ritwiks-projects.vercel.app` — those often require Vercel login when **Deployment Protection** is enabled.
+## Why the shell lives in `shell/`, not `public/`
 
-### If features look old (no collapsible dashboard / no email)
+Hosting serves files from `public/` **before** it applies rewrites. An
+`index.html` in `public/` would be handed to signed-out visitors straight off
+the CDN and the session check would never run. Keeping it in `shell/` forces
+every hit on `/` through the function. `test/route-guards.test.mjs` asserts
+this stays true.
 
-1. **Undo rollback** — Vercel → **Deployments** → find the rolled-back entry → **Undo Rollback**,  
-   **or** open the latest deployment (commit `Add section-level collapsible groups…`) → **⋯** → **Promote to Production**.
-2. Confirm **Production** domain `frido-qc-audit.vercel.app` points at that deployment (Domains tab on the deployment).
-3. Hard-refresh the browser (`Cmd+Shift+R`) or test in an incognito window.
+## Deployment gotchas
 
-### Let anyone open the app (no Vercel login)
+These all produce misleading status codes. Each is already handled in the repo;
+listed so the next person recognises the symptom.
 
-Vercel → **Project** → **Settings** → **Deployment Protection**:
+| Symptom | Cause | Fix (already applied) |
+|---|---|---|
+| Build fails at step 0, `gcs-fetcher` exit 3 | Build SA has no IAM roles | `roles/cloudbuild.builds.builder` on `<PROJECT_NUMBER>-compute@` |
+| **403 on every URL** | No Cloud Run invoker binding | `invoker: 'public'` in `server.js` |
+| **404 on every route** but `/_next/image` is 200 | The buildpack installs deps but does **not** run `npm run build` | `functions.predeploy` runs the build; `.next` ships, only `**/.next/cache/**` is ignored |
+| ~30s cold start | `next.config.ts` makes Next `npm install typescript` on every cold start | Config is `next.config.js` |
+| Every GET fine, **every POST a silent 504 at exactly 60s** | `onRequest` runs Express, whose body parser drains the stream into `req.rawBody`; Next then reads an exhausted stream | `withReplayedBody()` in `server.js` replays `rawBody` through a fresh `Readable` |
+| Sign-in succeeds, then bounces to `/login` | Hosting strips every cookie except `__session` | Session cookie is named `__session` |
+| Redirect sends the browser to `localhost:3000` | Behind Hosting, `request.url` is the function's internal listener | Redirects use a **relative** `Location` |
+| Requests hang to 60s then 502 | Runtime SA lacks Firestore/Storage access | `roles/datastore.user` + `roles/storage.objectAdmin` |
+| Second route throws "already been initialized" | Next bundles routes separately, so a module-level cache is per-bundle | Admin SDK handles cached on `globalThis` |
+| Images bill forever | No Artifact Registry cleanup policy | Policy set to delete images older than 3 days |
+| Deploy rejected for a reserved env var | `FIREBASE_` is a reserved prefix | The bucket var is `STORAGE_BUCKET` |
 
-- Set **Production** to **not** require Vercel Authentication (or “Standard Protection” only for previews).
-- Keep protection on **Preview** deployments if you want; only **Production** needs to be public.
+Note: a failure to set the cleanup policy **aborts the Hosting release** even
+though functions deployed fine — the site then serves "Site Not Found" while
+the deploy log looks almost successful.
 
-### Email on audit submit
+## Not configured
 
-Production must have Graph + Supabase env vars under **Settings → Environment Variables** (Production). Redeploy after changing env vars.
+Audit notification emails (Microsoft Graph) have no credentials in this
+project, so `notifyAuditSubmitted` / `notifyAuditDeleted` log a warning and
+skip. To enable, add the secrets and declare them in `server.js`:
 
-## CI/CD
-
-GitHub Actions workflows included:
-
-- `ci.yml`  
-  - Runs on PRs and pushes to `main`
-  - Installs dependencies and runs `npm run build`
-
-- `cd-vercel.yml`  
-  - Runs on push to `main`
-  - Builds and deploys to Vercel production
-
-Required GitHub secrets for CD:
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-## Main paths
-
-- `public/index.html` — unified app shell
-- `public/assets/audit-form.js` — form logic
-- `public/assets/dashboard.js` — dashboard logic
-- `public/assets/responses.js` — response copies logic
-- `lib/audit-store.js` — storage abstraction (Supabase + file fallback)
-# fesqcaudit
+```bash
+firebase --project "$(node scripts/firebase-project.mjs)" functions:secrets:set AZURE_CLIENT_SECRET
+```

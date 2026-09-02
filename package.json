@@ -14,7 +14,8 @@
     "deploy": "firebase --project \"$(node scripts/firebase-project.mjs)\" deploy --only hosting,functions",
     "deploy:rules": "firebase --project \"$(node scripts/firebase-project.mjs)\" deploy --only firestore:rules,firestore:indexes,storage",
     "seed:user": "node scripts/seed-user.mjs",
-    "logs": "firebase --project \"$(node scripts/firebase-project.mjs)\" functions:log --only server"
+    "logs": "firebase --project \"$(node scripts/firebase-project.mjs)\" functions:log --only server",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.0.2",

@@ -25,7 +25,7 @@ export default function LoginForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || 'Something went wrong.'); return; }
-      setNotice(data.message || 'If that address has an account, a code is on its way.');
+      setNotice(data.message || 'A 6-digit code is on its way to your inbox.');
       setStep(CODE_STEP);
     } catch {
       setError('Network error. Check your connection and try again.');
@@ -61,7 +61,11 @@ export default function LoginForm() {
 
         {step === EMAIL_STEP ? (
           <form onSubmit={requestCode} className={styles.form}>
-            <p className={styles.lede}>Sign in with your work email. We&rsquo;ll send you a 6-digit code.</p>
+            <p className={styles.lede}>
+              Sign in with your <strong>@myfrido.com</strong> address and we&rsquo;ll email you a
+              6-digit code. No sign-up and no approval needed &mdash; your first sign-in
+              creates your account.
+            </p>
             <label className={styles.label} htmlFor="email">Work email</label>
             <input
               id="email" type="email" autoComplete="email" required autoFocus

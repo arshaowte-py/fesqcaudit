@@ -1,24 +1,15 @@
 import { NextResponse } from 'next/server';
 import { isEligibleAddress, normalizeEmail } from '../../../../lib/auth-rules';
-import { isKnownUser } from '../../../../lib/users';
-import {
-  otplessConfigured, initiateOtp, putPendingOtp, expectedLatencyMs, recordLatency, sleep,
-} from '../../../../lib/otp';
+import { otplessConfigured, initiateOtp, putPendingOtp } from '../../../../lib/otp';
 import { consume, LIMITS } from '../../../../lib/rate-limit';
 import { clientIp } from '../../../../lib/request-ip';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * The one response an eligible address ever gets, whether or not it belongs to
- * a real account. Both branches below return exactly this, and take the same
- * amount of time to do it.
- */
-const IDENTICAL = { ok: true, message: 'If that address has an account, a code is on its way.' };
+const SENT = { ok: true, message: 'A 6-digit code is on its way to your inbox.' };
 
 export async function POST(request) {
-  const started = Date.now();
   const ip = clientIp(request);
 
   let email;
@@ -38,8 +29,8 @@ export async function POST(request) {
     );
   }
 
-  // Wrong domain is refused outright — this reveals nothing about who has an
-  // account, only which domain the tool serves.
+  // The domain IS the access rule: any @myfrido.com address may sign in, and
+  // the account is created on first successful verification.
   if (!isEligibleAddress(email)) {
     return NextResponse.json(
       { ok: false, error: 'Use your @myfrido.com address.' },
@@ -47,8 +38,6 @@ export async function POST(request) {
     );
   }
 
-  // Checked BEFORE the account lookup so a credentials outage answers the same
-  // way for everyone, rather than leaking which addresses exist.
   if (!otplessConfigured()) {
     console.error('[auth] OTPless credentials missing — refusing to issue any code.');
     return NextResponse.json(
@@ -65,27 +54,16 @@ export async function POST(request) {
     );
   }
 
-  // Read the shared target BEFORE branching so both paths pay for this read.
-  const target = await expectedLatencyMs();
-  const known = await isKnownUser(email);
-
-  if (known) {
-    try {
-      const requestId = await initiateOtp(email);
-      await putPendingOtp(email, requestId);
-    } catch (err) {
-      console.error('[auth] initiate failed:', err.message);
-      return NextResponse.json(
-        { ok: false, error: 'Sign-in is temporarily unavailable.' },
-        { status: 502 }
-      );
-    }
-    // Sampled before the pad, so the target tracks real work, not the padding.
-    recordLatency(Date.now() - started).catch(() => {});
+  try {
+    const requestId = await initiateOtp(email);
+    await putPendingOtp(email, requestId);
+  } catch (err) {
+    console.error('[auth] initiate failed:', err.message);
+    return NextResponse.json(
+      { ok: false, error: 'Sign-in is temporarily unavailable.' },
+      { status: 502 }
+    );
   }
 
-  // BOTH branches land here: same body, same status, same duration. Nothing is
-  // ever written to `users`, so asking for a code cannot create an account.
-  await sleep(target - (Date.now() - started));
-  return NextResponse.json(IDENTICAL);
+  return NextResponse.json(SENT);
 }

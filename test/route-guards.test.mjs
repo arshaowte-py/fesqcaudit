@@ -74,3 +74,25 @@ test('redirects use a relative Location, never one built from request.url', () =
     assert.match(src, /Location:\s*'\//, `${file} should send a relative Location`);
   }
 });
+
+test('CSP is built per request with a nonce, not statically', () => {
+  // A static `script-src 'self'` in next.config.js blocks Next's own inline
+  // hydration scripts. The page still renders and still returns 200, but no
+  // event handler is ever attached — the sign-in button never enables.
+  const mwSrc = readFileSync(path.join(process.cwd(), 'middleware.js'), 'utf8');
+  // Strip comments — the file explains why strict-dynamic is avoided, and the
+  // check below must read the code, not the prose about it.
+  const mw = mwSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.match(mw, /nonce-\$\{nonce\}/, 'middleware must put a nonce in script-src');
+  assert.match(mw, /x-nonce/, 'Next reads the nonce from the request headers');
+  assert.ok(
+    !/'strict-dynamic'/.test(mw),
+    "strict-dynamic makes browsers ignore 'self', which breaks the shell's /assets/*.js"
+  );
+
+  const cfg = readFileSync(path.join(process.cwd(), 'next.config.js'), 'utf8');
+  assert.ok(
+    !/Content-Security-Policy/i.test(cfg),
+    'a static CSP in next.config.js would override the per-request nonce'
+  );
+});

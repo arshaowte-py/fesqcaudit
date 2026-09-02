@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   isEligibleAddress, normalizeEmail, serializeSessionCookie, MAX_OTP_ATTEMPTS,
 } from '../../../../lib/auth-rules';
-import { isKnownUser, touchUserLogin } from '../../../../lib/users';
+import { ensureUser } from '../../../../lib/users';
 import { verifyOtp, claimOtpAttempt, clearPendingOtp } from '../../../../lib/otp';
 import { createSession } from '../../../../lib/session';
 import { consume, LIMITS } from '../../../../lib/rate-limit';
@@ -62,16 +62,20 @@ export async function POST(request) {
 
   if (!verified) return NextResponse.json(BAD_CODE, { status: 400 });
 
-  // Re-check the allowlist at redemption: a user removed while a code was in
-  // flight must not be able to complete sign-in.
-  if (!(await isKnownUser(email))) {
-    await clearPendingOtp(email);
-    return NextResponse.json(BAD_CODE, { status: 400 });
-  }
-
+  // The code checked out, so this mailbox is genuinely theirs. Create the
+  // account now if it does not exist yet — no approval, no pre-registration.
+  const account = await ensureUser(email);
   await clearPendingOtp(email);
+
+  if (!account.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'Access for this account has been revoked.' },
+      { status: 403 }
+    );
+  }
+  if (account.created) console.info(`[auth] auto-provisioned account for ${email}`);
+
   const token = await createSession(email);
-  await touchUserLogin(email).catch(() => {});
 
   const res = NextResponse.json({ ok: true, email });
   res.headers.set(

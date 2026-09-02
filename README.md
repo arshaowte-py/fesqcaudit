@@ -24,6 +24,7 @@ npm run build          # production build
 npm run deploy         # hosting + functions
 npm run deploy:rules   # Firestore rules + indexes
 npm run logs           # tail the server function
+npm run smoke -- https://<site>.web.app   # post-deploy checks against the live site
 ```
 
 ## The project id is never hardcoded
@@ -47,17 +48,28 @@ id the environment reports.
 
 ## Accounts
 
-Requesting a code can never create an account: the sign-in path only ever reads
-the `users` collection. Accounts are made out of band.
+**Any `@myfrido.com` address can sign in. There is no approval step and no
+pre-registration** — proving you receive mail at the address *is* the
+authorisation.
+
+The account document is created on **first successful sign-in**, not when a
+code is requested. That ordering is deliberate: creating on request would let
+anyone spray invented addresses and fill the collection with accounts nobody
+controls. Creating on verification means a document only appears for a mailbox
+someone has demonstrated access to.
+
+`scripts/seed-user.mjs` is still how you grant privileges or revoke access:
 
 ```bash
-npm run seed:user -- someone@myfrido.com              # create
 npm run seed:user -- someone@myfrido.com --can-delete # allow deleting audits
-npm run seed:user -- someone@myfrido.com --disable    # revoke access
+npm run seed:user -- someone@myfrido.com --disable    # revoke access (offboarding)
+npm run seed:user -- someone@myfrido.com --enable     # restore
 npm run seed:user -- --list
 ```
 
-Sign-in requires **both** an `@myfrido.com` address and a `users` document.
+`disabled: true` is the one remaining gate — use it when someone leaves but
+their mailbox still exists. Deletion stays opt-in (`canDelete`), so a
+self-provisioned account can read and submit audits but not delete them.
 
 ## Auth design notes
 
@@ -66,8 +78,9 @@ Sign-in requires **both** an `@myfrido.com` address and a `users` document.
   against Cloud Run directly, then fails only through Hosting.
 - Sessions store the **SHA-256 of the token** as the document id; the token
   itself is never persisted. `HttpOnly`, `Secure`, `SameSite=Strict`, 12h.
-- An unknown address gets a byte-identical response to a real one, padded to
-  the same duration, or the endpoint becomes a staff directory.
+- Access is domain-based, so there is no membership secret to protect and no
+  identical-response or timing-equalisation machinery. Anyone who controls an
+  `@myfrido.com` mailbox is authorised by definition.
 - Only the OTPless `requestId` is stored, keyed by email as the **document
   id**, which makes "one live code per person" a property of the database.
   The code itself is never stored. 5 attempts, incremented transactionally.
@@ -104,10 +117,18 @@ listed so the next person recognises the symptom.
 | Every GET fine, **every POST a silent 504 at exactly 60s** | `onRequest` runs Express, whose body parser drains the stream into `req.rawBody`; Next then reads an exhausted stream | `withReplayedBody()` in `server.js` replays `rawBody` through a fresh `Readable` |
 | Sign-in succeeds, then bounces to `/login` | Hosting strips every cookie except `__session` | Session cookie is named `__session` |
 | Redirect sends the browser to `localhost:3000` | Behind Hosting, `request.url` is the function's internal listener | Redirects use a **relative** `Location` |
+| Login page renders but the button never enables | A static `script-src 'self'` blocks Next's inline hydration scripts, so React never attaches any handler | CSP is built per request in `middleware.js` with a nonce Next stamps onto its own scripts |
 | Requests hang to 60s then 502 | Runtime SA lacks Firestore/Storage access | `roles/datastore.user` + `roles/storage.objectAdmin` |
 | Second route throws "already been initialized" | Next bundles routes separately, so a module-level cache is per-bundle | Admin SDK handles cached on `globalThis` |
 | Images bill forever | No Artifact Registry cleanup policy | Policy set to delete images older than 3 days |
 | Deploy rejected for a reserved env var | `FIREBASE_` is a reserved prefix | The bucket var is `STORAGE_BUCKET` |
+
+The hydration one deserves emphasis: it is invisible to HTTP-level checks.
+`/login` returns 200, the HTML is valid and the security headers are all
+correct — the page is simply inert. `npm run smoke` catches it by asserting
+every inline `<script>` carries a nonce. Do not use `'strict-dynamic'`: it
+makes browsers ignore `'self'`, and the shell at `/` loads `/assets/*.js` with
+plain `<script src>` tags that no nonced script pulls in.
 
 Note: a failure to set the cleanup policy **aborts the Hosting release** even
 though functions deployed fine — the site then serves "Site Not Found" while

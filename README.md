@@ -210,12 +210,69 @@ Note: a failure to set the cleanup policy **aborts the Hosting release** even
 though functions deployed fine — the site then serves "Site Not Found" while
 the deploy log looks almost successful.
 
-## Not configured
+## Audit notification emails
 
-Audit notification emails (Microsoft Graph) have no credentials in this
-project, so `notifyAuditSubmitted` / `notifyAuditDeleted` log a warning and
-skip. To enable, add the secrets and declare them in `server.js`:
+The app sends no email itself. `notifyAuditSubmitted` / `notifyAuditDeleted`
+append a document to the **`mail`** collection and the Firebase **Trigger Email
+from Firestore** extension delivers it, writing the result back onto the same
+document under `delivery`.
 
-```bash
-firebase --project "$(node scripts/firebase-project.mjs)" functions:secrets:set AZURE_CLIENT_SECRET
+No mail vendor appears anywhere in application code, so switching provider is
+an extension config change rather than a code change. Delivery is also off the
+request path — the old Microsoft Graph call ran inside the submit request, so a
+slow mail API delayed the auditor's response.
+
+This replaced Microsoft Graph, which needed an Azure app registration,
+`Mail.Send` application permission, admin consent, and four environment
+variables. None of that exists any more.
+
+### Setting up delivery (one time)
+
+1. Create a **Resend** account and add **`notifications.myfrido.com`** (or
+   another subdomain) as a sending domain.
+
+   Use a **subdomain, never the root**. The root `myfrido.com` SPF record
+   points at Microsoft 365 for all company email; editing it incorrectly breaks
+   company-wide mail delivery. A subdomain is a separate namespace and cannot
+   affect existing mail flow.
+
+2. Add the DNS records Resend shows you (an SPF TXT and a DKIM TXT).
+
+   These are not optional. SMTP carries no proof of sender identity, so without
+   them a receiving server cannot tell authorised mail from spoofed mail. It
+   matters more here than usual: sender and recipients are both `@myfrido.com`,
+   and unauthenticated same-domain mail is the classic phishing pattern —
+   Microsoft 365 will quarantine or reject it rather than merely junk it. Graph
+   needed no DNS because it sent from inside the tenant, where mail is
+   authenticated by definition. These records are that trust, re-established
+   outside Microsoft.
+
+3. Install the extension:
+
+   ```bash
+   firebase ext:install firebase/firestore-send-email \
+     --project "$(node scripts/firebase-project.mjs)"
+   ```
+
+   Configure it with: collection `mail`, region `asia-south1`, SMTP URI from
+   Resend (`smtps://resend:<API_KEY>@smtp.resend.com:465`), and a default FROM
+   on the subdomain you verified.
+
+### If mail was queued before the extension existed
+
+The extension triggers on document **creation**. Anything queued beforehand
+sits in `mail` unsent and will not flush on its own. Re-writing a document
+re-fires the trigger, so to send a backlog, touch the pending documents:
+
+```js
+// for each doc in `mail` with no `delivery` field
+await doc.ref.update({ queuedAt: new Date().toISOString() });
 ```
+
+### Checking on delivery
+
+Each document carries `kind` (`audit-submitted` / `audit-deleted`), `context`
+(store, visit date), and once processed a `delivery.state` of `SUCCESS` or
+`ERROR` with the reason. A queue with no `delivery` fields at all means the
+extension is not installed or not watching the `mail` collection.
+

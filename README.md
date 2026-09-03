@@ -83,8 +83,15 @@ stops a project id from landing in the repo:
 The deployer service account holds only what a deploy needs:
 `firebase.admin`, `cloudfunctions.admin`, `run.admin`, `iam.serviceAccountUser`,
 `cloudbuild.builds.editor`, `artifactregistry.writer`, `storage.objectAdmin`,
-`serviceusage.serviceUsageConsumer`, plus `secretmanager.admin` scoped to the
-two OTPless secrets only.
+`serviceusage.serviceUsageAdmin`, plus `secretmanager.admin` scoped to the two
+OTPless secrets only.
+
+`serviceUsageAdmin` is there because firebase-tools enables the APIs it needs
+on every deploy — the first CI run failed on `Permissions denied enabling
+cloudbilling.googleapis.com`. It is not a meaningful escalation: the account
+already has `cloudfunctions.admin` and `run.admin`, so it can deploy arbitrary
+code regardless. Without it, any future API requirement dead-ends the
+pipeline with an error nobody but a GCP admin can clear.
 
 To tighten deploys to the `main` branch alone, change the provider's attribute
 condition to also require

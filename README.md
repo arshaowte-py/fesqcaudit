@@ -27,6 +27,75 @@ npm run logs           # tail the server function
 npm run smoke -- https://<site>.web.app   # post-deploy checks against the live site
 ```
 
+## Deploying
+
+**Merge to `main` deploys to production automatically.** There is no staging
+environment — this is an internal tool and that trade-off is deliberate.
+
+| Trigger | Workflow | What happens |
+|---|---|---|
+| Pull request | `ci.yml` | tests + build. No deploy. |
+| Merge / push to `main` | `deploy.yml` | tests → deploy → **smoke check the live site** |
+| Actions tab → "Deploy to Firebase" → Run workflow | `deploy.yml` | redeploy without a code change |
+
+The smoke check is the important part. A Firebase deploy can report complete
+success while the site is broken — that has already happened twice here (a
+cleanup-policy failure that silently skipped the hosting release, and a CSP
+that left the login page rendering perfectly but completely inert). `npm run
+smoke` asserts against the **live URL** that the app hydrates and that every
+API still rejects anonymous callers, and it fails the run if not.
+
+### If a deploy goes red
+
+The final step prints what to do. In short:
+
+- **Tests failed** — nothing was deployed. Fix and merge again.
+- **Deploy failed** — production is likely still on the previous version.
+  Re-run the workflow from the Actions tab.
+- **Smoke failed** — the deploy worked but the live site is unhealthy. The
+  failing check names the problem. **Revert the merge on `main`**; the revert
+  is itself a push to main, so it redeploys the last good version.
+
+There is no automatic rollback. Reverting the merge is the rollback, and for a
+tool this size that is simpler to reason about than machinery that tries to
+undo a half-finished deploy on its own.
+
+### Running it by hand
+
+`npm run deploy` still works from a laptop and does the same thing, minus the
+smoke check — run `npm run smoke` after.
+
+### One-time setup
+
+CI authenticates with **Workload Identity Federation**, so there is no
+long-lived service account key stored in GitHub. GitHub mints a short-lived
+OIDC token and Google exchanges it, and only this repository is allowed to make
+that exchange.
+
+Two GitHub Actions **variables** (Settings → Secrets and variables → Actions →
+Variables) point at it. They are variables rather than secrets because neither
+value is sensitive — and keeping them out of the committed workflow is what
+stops a project id from landing in the repo:
+
+- `WIF_PROVIDER` — `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github-oidc`
+- `DEPLOY_SA` — `github-deployer@<PROJECT_ID>.iam.gserviceaccount.com`
+
+The deployer service account holds only what a deploy needs:
+`firebase.admin`, `cloudfunctions.admin`, `run.admin`, `iam.serviceAccountUser`,
+`cloudbuild.builds.editor`, `artifactregistry.writer`, `storage.objectAdmin`,
+`serviceusage.serviceUsageConsumer`, plus `secretmanager.admin` scoped to the
+two OTPless secrets only.
+
+To tighten deploys to the `main` branch alone, change the provider's attribute
+condition to also require
+`assertion.ref == 'refs/heads/main'`.
+
+### Recommended: protect `main`
+
+Not configured, because it needs repo admin. Settings → Branches → add a rule
+for `main` requiring the **CI** check to pass before merging. Without it a
+direct push to `main` deploys straight to production with no review.
+
 ## The project id is never hardcoded
 
 Several Firebase projects live under `~/work`, and the Firebase CLI resolves

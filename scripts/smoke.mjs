@@ -10,11 +10,22 @@
  *
  *   npm run smoke
  */
-const site = process.argv[2] || `https://${process.env.SMOKE_SITE || ''}`.replace(/^https:\/\/$/, '');
-if (!site) {
-  console.error('Usage: npm run smoke -- https://<your-site>.web.app');
-  process.exit(1);
+// Default to this repo's own Hosting URL, derived from .firebaserc — so no
+// project id is ever written into a workflow file or a command line.
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+function defaultSite() {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const rc = JSON.parse(readFileSync(join(repoRoot, '.firebaserc'), 'utf8'));
+  const projectId = rc?.projects?.default;
+  if (!projectId) throw new Error('.firebaserc has no projects.default');
+  return `https://${projectId}.web.app`;
 }
+
+const site = (process.argv[2] || defaultSite()).replace(/\/+$/, '');
+console.log(`smoke: ${site}\n`);
 
 let failures = 0;
 const check = (name, ok, detail = '') => {

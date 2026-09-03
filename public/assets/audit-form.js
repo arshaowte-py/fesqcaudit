@@ -128,8 +128,12 @@ const CHECKPOINTS = {
 /* ─── State ─── */
 const state = {};          // { S1: { Q1: { answer, remark, photos[] } } }
 const MAX_PHOTOS_PER_CHECKPOINT = 5;
-/** Vercel serverless request body limit is ~4.5 MB */
-const MAX_SUBMIT_BYTES = 4 * 1024 * 1024;
+/**
+ * Firebase Hosting caps a request body at 32 MB, but the photos travel as
+ * base64 (~33% overhead) and are decoded in the function before going to Cloud
+ * Storage, so we stay well under that to keep memory and latency sane.
+ */
+const MAX_SUBMIT_BYTES = 8 * 1024 * 1024;
 /** Sections that include product name + corrective action fields */
 const SECTIONS_WITH_PRODUCT_FIELDS = new Set(['S4', 'S7']);
 let submitInFlight = false;
@@ -638,11 +642,7 @@ async function handleSubmit() {
     } else {
       const msg = data.error || 'Unknown error';
       setSubmitBusy(false);
-      showToast(
-        msg.includes('Cannot reach Supabase')
-          ? msg
-          : 'Submission failed: ' + msg
-      );
+      showToast('Submission failed: ' + msg);
     }
   } catch (err) {
     hideOverlay('loadingOverlay');

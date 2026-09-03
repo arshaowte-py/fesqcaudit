@@ -1,0 +1,54 @@
+/* A stylesheet file, not inline style={{}} props: inline style attributes are
+   blocked by the page's style-src 'self' CSP. */
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F7F7F5;
+  padding: 24px;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 12px 32px rgba(0, 0, 0, .08);
+  border-top: 4px solid #FFD200;
+}
+.brand {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 32px;
+  color: #0A0A0A;
+  line-height: 1;
+}
+.title { margin: 4px 0 24px; font-size: 15px; font-weight: 500; color: #6B7280; letter-spacing: .04em; text-transform: uppercase; }
+.form { display: flex; flex-direction: column; }
+.lede { margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: #4B5563; }
+.label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.input {
+  width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 15px;
+  border: 1px solid #D1D5DB; border-radius: 10px; background: #fff; color: #0A0A0A;
+  font-family: inherit;
+}
+.input:focus { outline: none; border-color: #FFD200; box-shadow: 0 0 0 3px rgba(255, 210, 0, .3); }
+.codeInput { letter-spacing: .5em; text-align: center; font-size: 20px; font-weight: 600; }
+.button {
+  margin-top: 18px; padding: 12px 16px; font-size: 15px; font-weight: 600;
+  color: #0A0A0A; background: #FFD200; border: none; border-radius: 10px;
+  cursor: pointer; font-family: inherit;
+}
+.button:hover:not(:disabled) { background: #F0C800; }
+.button:disabled { opacity: .5; cursor: not-allowed; }
+.linkButton {
+  margin-top: 12px; background: none; border: none; color: #6B7280;
+  font-size: 13px; cursor: pointer; text-decoration: underline; font-family: inherit;
+}
+.error {
+  margin: 16px 0 0; padding: 10px 12px; font-size: 13px; line-height: 1.4;
+  color: #991B1B; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px;
+}

@@ -304,3 +304,13 @@
   });
 
 })();
+
+/* Service worker registration — moved here from an inline <script> in the page
+   so the CSP can be script-src 'self' with no 'unsafe-inline'. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js?v=17')
+      .then((reg) => console.log('SW registered:', reg.scope))
+      .catch((err) => console.error('SW registration failed:', err));
+  });
+}

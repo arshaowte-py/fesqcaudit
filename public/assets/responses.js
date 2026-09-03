@@ -389,21 +389,20 @@ async function toggleResponseCard(index) {
   card.classList.add('expanded');
 
   if (!detail.dataset.photosLoaded) {
-    injectPhotosIntoCheckpoints(audit.photos || [], detail);
+    // Photo bytes are no longer inlined on the audit record — they live in
+    // Cloud Storage and are fetched per audit on expand.
     detail.dataset.photosLoaded = '1';
+    fetchPhotos(audit.timestamp, audit.storeName).then((photos) => {
+      injectPhotosIntoCheckpoints(photos, detail);
+    });
   }
 }
 
 /* ── Delete Auth Modal ── */
 
-const AUTHORIZED_PHONES = ['9930332459', '7987962503'];
-
-function normalizePhone(input) {
-  const digits = (input || '').replace(/\D/g, '');
-  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
-  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
-  return digits;
-}
+// Deletion permission is enforced server-side (users/{email}.canDelete).
+// The old hardcoded phone allowlist shipped to every visitor and was
+// trivially skipped by calling the API directly.
 
 function showDeleteAuthModal(storeName) {
   return new Promise((resolve) => {
@@ -412,17 +411,13 @@ function showDeleteAuthModal(storeName) {
     overlay.innerHTML = `
       <div class="delete-auth-modal">
         <div class="delete-auth-title">Confirm Deletion</div>
-        <div class="delete-auth-subtitle">Enter your authorization number to delete<br><strong>${escapeHTML(storeName || 'this audit')}</strong></div>
-        <input type="tel" class="delete-auth-input" placeholder="Authorization number" autocomplete="off" />
-        <div class="delete-auth-error" hidden></div>
+        <div class="delete-auth-subtitle">Permanently delete the audit for<br><strong>${escapeHTML(storeName || 'this audit')}</strong>?<br>This cannot be undone.</div>
         <div class="delete-auth-actions">
           <button type="button" class="delete-auth-cancel">Cancel</button>
           <button type="button" class="delete-auth-submit">Delete</button>
         </div>
       </div>`;
 
-    const input = overlay.querySelector('.delete-auth-input');
-    const errorEl = overlay.querySelector('.delete-auth-error');
     const cancelBtn = overlay.querySelector('.delete-auth-cancel');
     const submitBtn = overlay.querySelector('.delete-auth-submit');
 
@@ -432,29 +427,18 @@ function showDeleteAuthModal(storeName) {
       resolve(result);
     }
 
-    function attempt() {
-      const normalized = normalizePhone(input.value);
-      if (AUTHORIZED_PHONES.includes(normalized)) {
-        close(true);
-      } else {
-        errorEl.textContent = 'Invalid authorization number. Please try again.';
-        errorEl.hidden = false;
-        input.select();
-      }
-    }
-
     function onKey(e) {
       if (e.key === 'Escape') close(false);
-      if (e.key === 'Enter') attempt();
+      if (e.key === 'Enter') close(true);
     }
 
     cancelBtn.addEventListener('click', () => close(false));
-    submitBtn.addEventListener('click', attempt);
+    submitBtn.addEventListener('click', () => close(true));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
     document.addEventListener('keydown', onKey);
 
     document.body.appendChild(overlay);
-    setTimeout(() => input.focus(), 50);
+    setTimeout(() => submitBtn.focus(), 50);
   });
 }
 

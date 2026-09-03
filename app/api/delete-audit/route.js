@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireDeletePermission } from '../../../lib/auth-guard';
 import { unstable_noStore as noStore } from 'next/cache';
 import { deleteAudit } from '../../../lib/audit-store';
 import { notifyAuditDeleted } from '../../../lib/audit-notification';
@@ -8,6 +9,9 @@ export const revalidate = 0;
 
 export async function DELETE(request) {
   noStore();
+
+  const { response: authError } = await requireDeletePermission(request);
+  if (authError) return authError;
 
   try {
     const body = await request.json();
